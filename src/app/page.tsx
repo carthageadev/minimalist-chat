@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import CharacterV2 from "~/components/CharacterV2";
 import { RetroChat } from "~/components/retro-chat/retro-chat";
 
