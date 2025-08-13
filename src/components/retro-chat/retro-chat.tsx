@@ -56,7 +56,7 @@ export const RetroChat = () => {
         },
         {
           role: "model" as const,
-          parts: [{ text: response }],
+          parts: [{ text: response || "No response" }],
         },
       ]);
     },

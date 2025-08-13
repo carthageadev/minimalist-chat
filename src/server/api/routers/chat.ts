@@ -42,7 +42,7 @@ export const chatRouter = createTRPCRouter({
         contents: input.message,
       });
 
-      return response.text;
+      return response.text || "I couldn't generate a response.";
     }),
 
   /*
