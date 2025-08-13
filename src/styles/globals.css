@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+}
+
+@layer utilities {
+  .retro-text {
+    color: #00ff00;
+    text-shadow: 0 0 10px #00ff00;
+  }
+
+  .amber-text {
+    color: #ffbf00;
+    text-shadow: 0 0 10px #ffbf00;
+  }
+}
+
+@keyframes glitch1 {
+  0% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(-2px, -2px);
+  }
+  40% {
+    transform: translate(-2px, 2px);
+  }
+  60% {
+    transform: translate(2px, -2px);
+  }
+  80% {
+    transform: translate(2px, 2px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+@keyframes glitch2 {
+  0% {
+    transform: translate(0, 0);
+  }
+  20% {
+    transform: translate(2px, 2px);
+  }
+  40% {
+    transform: translate(2px, -2px);
+  }
+  60% {
+    transform: translate(-2px, 2px);
+  }
+  80% {
+    transform: translate(-2px, -2px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+.animate-glitch1 {
+  animation: glitch1 0.2s infinite;
+}
+.animate-glitch2 {
+  animation: glitch2 0.3s infinite;
+}
