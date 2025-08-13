@@ -34,7 +34,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>
+      <body className="bg-black overflow-hidden">
         <TRPCReactProvider>{children}</TRPCReactProvider>
       </body>
     </html>

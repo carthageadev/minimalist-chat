@@ -1,7 +1,7 @@
 import { Type, type FunctionDeclaration } from "@google/genai";
 import { tracked } from "@trpc/server";
 import { z } from "zod";
-import { ai } from "~/server/ai/client";
+import { model } from "~/server/ai/client";
 import { createTRPCRouter, publicProcedure } from "~/server/api/trpc";
 
 const lightControlTool: FunctionDeclaration = {
@@ -37,10 +37,7 @@ export const chatRouter = createTRPCRouter({
   sendMessage: publicProcedure
     .input(z.object({ message: z.string() }))
     .mutation(async ({ input }) => {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-lite",
-        contents: input.message,
-      });
+      const response = await model.generateContent(input.message);
 
       return response.text || "I couldn't generate a response.";
     }),
