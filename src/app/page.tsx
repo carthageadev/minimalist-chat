@@ -4,7 +4,7 @@ import React from "react";
 import CharacterV2 from "~/components/CharacterV2";
 import { RetroChat } from "~/components/retro-chat/retro-chat";
 
-export default function Home() {
+export default function FbxPage() {
   return (
     <div className="w-[100vw] h-[100vh]">
       <div
