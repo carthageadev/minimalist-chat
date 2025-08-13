@@ -2,11 +2,7 @@
 
 import { type QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
-  createWSClient,
-  // httpBatchStreamLink,
-  httpSubscriptionLink,
-  splitLink,
-  wsLink,
+  httpBatchLink,
 } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import type { inferRouterInputs, inferRouterOutputs } from "@trpc/server";
@@ -44,39 +40,23 @@ export type RouterInputs = inferRouterInputs<AppRouter>;
  */
 export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
-const wsClient = createWSClient({
-  url: `ws://localhost:3001`,
-});
-
 export function TRPCReactProvider(props: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
 
   const [trpcClient] = useState(() =>
     api.createClient({
       links: [
-        splitLink({
-          // uses the httpSubscriptionLink for subscriptions
-          condition: (op) => op.type === "subscription",
-          true: httpSubscriptionLink({
-            url: `${getBaseUrl()}/api/trpc`,
-            transformer: SuperJSON,
-          }),
-          false: wsLink({
-            client: wsClient,
-            transformer: SuperJSON,
-          }),
-          // false: httpBatchStreamLink({
-          //   transformer: SuperJSON,
-          //   url: `${getBaseUrl()}/api/trpc`,
-          //   headers: () => {
-          //     const headers = new Headers();
-          //     headers.set("x-trpc-source", "nextjs-react");
-          //     return headers;
-          //   },
-          // }),
+        httpBatchLink({
+          url: `${getBaseUrl()}/api/trpc`,
+          transformer: SuperJSON,
+          headers: () => {
+            const headers = new Headers();
+            headers.set("x-trpc-source", "nextjs-react");
+            return headers;
+          },
         }),
       ],
-    })
+    }),
   );
 
   return (
