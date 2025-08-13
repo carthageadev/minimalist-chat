@@ -1,7 +1,0 @@
-{
-  "build": {
-    "env": {
-      "GEMINI_API_KEY": "@gemini-api-key"
-    }
-  }
-}
