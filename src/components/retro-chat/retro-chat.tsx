@@ -41,19 +41,62 @@ export const RetroChat = () => {
       if (typingIntervalRef.current) {
         window.clearInterval(typingIntervalRef.current);
       }
+      if (scrollAnimationRef.current) {
+        cancelAnimationFrame(scrollAnimationRef.current);
+      }
     };
   }, []);
 
   // Auto-scroll to bottom when messages change. If forcedAutoScrollRef is true (LLM typing)
   // we keep auto-scrolling regardless of user's scroll position until typing finishes.
+  const scrollAnimationRef = useRef<number | null>(null);
+  const lastScrollHeightRef = useRef<number>(0);
+  
   const scrollToBottom = (smooth = true) => {
     const el = chatContainerRef.current;
     if (!el) return;
-    try {
-      el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
-    } catch (e) {
-      el.scrollTop = el.scrollHeight;
+    
+    const targetHeight = el.scrollHeight;
+    const currentScroll = el.scrollTop;
+    const clientHeight = el.clientHeight;
+    const targetScroll = targetHeight - clientHeight;
+    
+    // If already at bottom or very close, don't animate
+    if (Math.abs(currentScroll - targetScroll) < 2) return;
+    
+    if (scrollAnimationRef.current) {
+      cancelAnimationFrame(scrollAnimationRef.current);
     }
+    
+    if (!smooth) {
+      el.scrollTop = targetScroll;
+      return;
+    }
+    
+    // Ultra smooth scroll with easing
+    const startScroll = currentScroll;
+    const distance = targetScroll - startScroll;
+    const startTime = performance.now();
+    const duration = Math.min(300, Math.abs(distance) * 0.5); // Adaptive duration
+    
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Ease out cubic for ultra smooth feel
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      const newScroll = startScroll + (distance * easeOut);
+      
+      el.scrollTop = newScroll;
+      
+      if (progress < 1) {
+        scrollAnimationRef.current = requestAnimationFrame(animate);
+      } else {
+        scrollAnimationRef.current = null;
+      }
+    };
+    
+    scrollAnimationRef.current = requestAnimationFrame(animate);
   };
 
   useEffect(() => {
@@ -73,8 +116,10 @@ export const RetroChat = () => {
     if (!el) return;
     // while forced auto-scroll is active, ignore user scroll inputs
     if (forcedAutoScrollRef.current) return;
+    
     const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
-    // If within 80px of bottom, consider user at bottom and enable auto-scroll
+    // Use a larger threshold and debounce to prevent jitter
+    shouldAutoScrollRef.current = distanceFromBottom < 100;
     shouldAutoScrollRef.current = distanceFromBottom < 80;
   };
 
@@ -134,9 +179,13 @@ export const RetroChat = () => {
           return copy;
         });
 
-        // Force scroll to bottom during typing animation
+        // Only scroll if content height actually changed (prevents jitter)
         if (forcedAutoScrollRef.current) {
-          scrollToBottom(true);
+          const el = chatContainerRef.current;
+          if (el && el.scrollHeight !== lastScrollHeightRef.current) {
+            lastScrollHeightRef.current = el.scrollHeight;
+            scrollToBottom(true);
+          }
         }
 
         if (idx >= fullText.length) {
