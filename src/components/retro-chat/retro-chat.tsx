@@ -153,7 +153,7 @@ export const RetroChat = () => {
   });
 
   return (
-    <div className="w-full h-full flex items-center justify-center">
+  <div className="w-full h-full flex items-center justify-center overflow-x-hidden">
       <div className="w-full max-w-3xl h-full border-2 border-green-700 bg-green-950/70 relative overflow-hidden">
       <TargetCursor spinDuration={7} />
   <div className="relative w-full h-[calc(100%-64px)] overflow-hidden">
@@ -190,7 +190,7 @@ export const RetroChat = () => {
           // refocus immediately so the input doesn't lose focus when submitting
           inputRef.current?.focus();
         }}
-        className="w-full h-[64px] border-t-2 border-green-700 flex gap-2"
+        className="w-full h-[64px] border-t-2 border-green-700 flex gap-2 overflow-x-hidden"
       >
         <input
           type="text"

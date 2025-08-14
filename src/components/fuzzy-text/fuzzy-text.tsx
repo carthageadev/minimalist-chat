@@ -253,7 +253,7 @@ const FuzzyText: React.FC<FuzzyTextProps> = ({
     containerWidth,
   ]);
 
-  return <canvas ref={canvasRef} />;
+  return <canvas ref={canvasRef} style={{ maxWidth: "100%", display: "block" }} />;
 };
 
 export default FuzzyText;
