@@ -57,11 +57,9 @@ export const RetroChat = () => {
   };
 
   useEffect(() => {
-    if (forcedAutoScrollRef.current) {
-      // ensure the view follows the typing LLM smoothly - no delay when forced
-      scrollToBottom(true);
-      return;
-    }
+    // Don't use useEffect auto-scroll when forced mode is active - 
+    // the typing interval handles scrolling directly for smoother experience
+    if (forcedAutoScrollRef.current) return;
 
     if (!shouldAutoScrollRef.current) return; // user scrolled up, don't auto-scroll
 
@@ -98,6 +96,8 @@ export const RetroChat = () => {
   const sendMessageMutation = api.chat.sendMessage.useMutation({
     onMutate: () => {
       setIsLoading(true);
+      // Keep input focused immediately when starting mutation
+      setTimeout(() => inputRef.current?.focus(), 0);
     },
     onSuccess: (response) => {
       const fullText = response || "No response";
@@ -152,8 +152,8 @@ export const RetroChat = () => {
     onSettled: () => {
       setIsLoading(false);
       setMessage("");
-      // keep input focused so the user can continue typing
-      inputRef.current?.focus();
+      // Ensure input stays focused after everything is done
+      setTimeout(() => inputRef.current?.focus(), 0);
     },
   });
 
@@ -204,6 +204,7 @@ export const RetroChat = () => {
           ref={inputRef}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
+          autoFocus
           className="text-2xl text-green-600 w-full h-full px-3 bg-transparent border-none outline-none border-r-2 border-green-700 relative cursor-target min-w-0 flex-1"
         />
         <button
