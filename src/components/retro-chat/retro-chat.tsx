@@ -10,6 +10,7 @@ export const RetroChat = () => {
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   const [messages, setMessages] = useState<string[]>([]);
 
@@ -103,6 +104,8 @@ export const RetroChat = () => {
     onSettled: () => {
       setIsLoading(false);
       setMessage("");
+      // keep input focused so the user can continue typing
+      inputRef.current?.focus();
     },
   });
 
@@ -139,6 +142,8 @@ export const RetroChat = () => {
         onSubmit={(e) => {
           e.preventDefault();
           sendMessageMutation.mutate({ message, history });
+          // refocus immediately so the input doesn't lose focus when submitting
+          inputRef.current?.focus();
         }}
         className="w-full h-[64px] border-t-2 border-green-700 flex gap-2"
       >
@@ -146,6 +151,7 @@ export const RetroChat = () => {
           type="text"
           disabled={isLoading}
           placeholder={isLoading ? "Please wait..." : "Message..."}
+          ref={inputRef}
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           className="text-2xl text-green-600 w-full h-full px-3 bg-transparent border-none outline-none border-r-2 border-green-700 relative cursor-target"
