@@ -45,17 +45,22 @@ export const RetroChat = () => {
 
   // Auto-scroll to bottom when messages change, but only when user hasn't scrolled up
   useEffect(() => {
-    const scrollToBottom = () => {
-      if (chatContainerRef.current) {
-        chatContainerRef.current.scrollTop =
-          chatContainerRef.current.scrollHeight;
+    const scrollToBottom = (smooth = true) => {
+      const el = chatContainerRef.current;
+      if (!el) return;
+      try {
+        // prefer smooth scrolling when available
+        el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+      } catch (e) {
+        // fallback
+        el.scrollTop = el.scrollHeight;
       }
     };
 
     if (!shouldAutoScrollRef.current) return; // user scrolled up, don't auto-scroll
 
-    // Add a small delay to ensure content is rendered
-    const timeoutId = setTimeout(scrollToBottom, 100);
+    // Small delay to ensure content is rendered; smaller delay gives smoother feel while typing
+    const timeoutId = setTimeout(() => scrollToBottom(true), 50);
 
     return () => clearTimeout(timeoutId);
   }, [history, messages]);
