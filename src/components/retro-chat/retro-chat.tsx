@@ -11,6 +11,7 @@ export const RetroChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const shouldAutoScrollRef = useRef(true);
 
   const [messages, setMessages] = useState<string[]>([]);
 
@@ -41,7 +42,7 @@ export const RetroChat = () => {
     };
   }, []);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change, but only when user hasn't scrolled up
   useEffect(() => {
     const scrollToBottom = () => {
       if (chatContainerRef.current) {
@@ -50,11 +51,22 @@ export const RetroChat = () => {
       }
     };
 
+    if (!shouldAutoScrollRef.current) return; // user scrolled up, don't auto-scroll
+
     // Add a small delay to ensure content is rendered
     const timeoutId = setTimeout(scrollToBottom, 100);
 
     return () => clearTimeout(timeoutId);
   }, [history, messages]);
+
+  // Update auto-scroll flag based on user's scroll position
+  const handleChatScroll = () => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
+    // If within 80px of bottom, consider user at bottom and enable auto-scroll
+    shouldAutoScrollRef.current = distanceFromBottom < 80;
+  };
 
   const sendMessageMutation = api.chat.sendMessage.useMutation({
     onMutate: () => {
@@ -117,6 +129,7 @@ export const RetroChat = () => {
 
         <div
           ref={chatContainerRef}
+          onScroll={handleChatScroll}
           className={
             "w-full h-full p-4 text-green-600 retro-text overflow-y-scroll scroll-smooth [&::-webkit-scrollbar]:w-2 dark:[&::-webkit-scrollbar-thumb]:bg-green-700"
           }
