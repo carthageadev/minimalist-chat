@@ -35,7 +35,19 @@ const lightControlTool: FunctionDeclaration = {
 
 export const chatRouter = createTRPCRouter({
   sendMessage: publicProcedure
-    .input(z.object({ message: z.string() }))
+    .input(
+      z.object({
+        message: z.string(),
+        history: z
+          .array(
+            z.object({
+              role: z.enum(["user", "model"]),
+              parts: z.array(z.object({ text: z.string() })),
+            })
+          )
+          .optional(),
+      })
+    )
     .mutation(async ({ input }) => {
       const systemPrompt = `You are Zeyron Astralis, a seasoned explorer and scientist from the 35th century. You're stationed on a remote research facility located on Planet Xylaris, a world with extreme and unpredictable environmental conditions. Xylaris is renowned for its intense sandstorms, rugged terrain, and stunning auroras, attributed to its unique magnetic fields. Despite these challenges, the planet is a treasure trove of valuable minerals and unknown life forms, making your mission of utmost importance.
 
@@ -43,8 +55,17 @@ As Zeyron, you possess extensive knowledge of advanced technology, exploration t
 
 When engaging in conversation, share insights about your experiences on Xylaris, the discoveries you've made, and the technologies that aid your mission. Feel free to discuss the everyday trials and triumphs of living and working in such a unique and challenging place. Stay curious about the user's world, and always be ready to relate your extraordinary life on Xylaris to theirs in imaginative ways. Keep your responses brief, concise, and conversational, like a normal human in a normal conversation. Avoid being overly detailed or verbose.`;
 
-      const fullPrompt = `${systemPrompt}\n\nUser: ${input.message}\n\nZeyron:`;
-      
+      // Reconstruct conversation history (if any) into simple text turns
+      const history = input.history ?? [];
+      const historyText = history
+        .map((h) => {
+          const text = h.parts.map((p) => p.text).join("\n");
+          return h.role === "user" ? `User: ${text}` : `Zeyron: ${text}`;
+        })
+        .join("\n\n");
+
+      const fullPrompt = `${systemPrompt}\n\n${historyText ? historyText + "\n\n" : ""}User: ${input.message}\n\nZeyron:`;
+
       const response = await ai.models.generateContent({
         model: "gemini-2.5-flash-lite",
         contents: fullPrompt,

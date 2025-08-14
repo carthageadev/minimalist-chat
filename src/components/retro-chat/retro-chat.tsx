@@ -23,10 +23,22 @@ export const RetroChat = () => {
   const [query, setQuery] = useState<{
     message: string;
     trackId: string | null;
-  }>({
-    message: "",
-    trackId: null,
-  });
+  }>(
+    {
+      message: "",
+      trackId: null,
+    }
+  );
+
+  const typingIntervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (typingIntervalRef.current) {
+        window.clearInterval(typingIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -48,17 +60,45 @@ export const RetroChat = () => {
       setIsLoading(true);
     },
     onSuccess: (response) => {
+      const fullText = response || "No response";
+
+      // Append user's turn and an empty model turn we will fill while typing
       setHistory((prev) => [
         ...prev,
-        {
-          role: "user" as const,
-          parts: [{ text: message }],
-        },
-        {
-          role: "model" as const,
-          parts: [{ text: response || "No response" }],
-        },
+        { role: "user" as const, parts: [{ text: message }] },
+        { role: "model" as const, parts: [{ text: "" }] },
       ]);
+
+      // Animate text into the last history entry
+      let idx = 0;
+      const chunk = 2; // characters per tick
+      const tickMs = 24; // ~40fps
+
+      if (typingIntervalRef.current) {
+        window.clearInterval(typingIntervalRef.current);
+      }
+
+      typingIntervalRef.current = window.setInterval(() => {
+        idx = Math.min(fullText.length, idx + chunk);
+        setHistory((prev) => {
+          if (prev.length === 0) return prev;
+          const copy = prev.slice();
+          const prevLast = copy[copy.length - 1];
+          const last = {
+            role: prevLast?.role ?? "model",
+            parts: [{ text: fullText.slice(0, idx) }],
+          } as { role: "user" | "model"; parts: { text: string }[] };
+          copy[copy.length - 1] = last;
+          return copy;
+        });
+
+        if (idx >= fullText.length) {
+          if (typingIntervalRef.current) {
+            window.clearInterval(typingIntervalRef.current);
+            typingIntervalRef.current = null;
+          }
+        }
+      }, tickMs);
     },
     onSettled: () => {
       setIsLoading(false);
@@ -98,7 +138,7 @@ export const RetroChat = () => {
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          sendMessageMutation.mutate({ message });
+          sendMessageMutation.mutate({ message, history });
         }}
         className="w-full h-[64px] border-t-2 border-green-700 flex gap-2"
       >
