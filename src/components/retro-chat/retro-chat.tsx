@@ -12,6 +12,7 @@ export const RetroChat = () => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
+  const forcedAutoScrollRef = useRef(false);
   const [chatWidth, setChatWidth] = useState<number>(406);
 
   const [messages, setMessages] = useState<string[]>([]);
@@ -69,6 +70,8 @@ export const RetroChat = () => {
   const handleChatScroll = () => {
     const el = chatContainerRef.current;
     if (!el) return;
+    // while forced auto-scroll is active, ignore user scroll inputs
+    if (forcedAutoScrollRef.current) return;
     const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
     // If within 80px of bottom, consider user at bottom and enable auto-scroll
     shouldAutoScrollRef.current = distanceFromBottom < 80;
