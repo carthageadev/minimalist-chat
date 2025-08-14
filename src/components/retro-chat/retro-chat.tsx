@@ -44,25 +44,28 @@ export const RetroChat = () => {
     };
   }, []);
 
-  // Auto-scroll to bottom when messages change, but only when user hasn't scrolled up
+  // Auto-scroll to bottom when messages change. If forcedAutoScrollRef is true (LLM typing)
+  // we keep auto-scrolling regardless of user's scroll position until typing finishes.
+  const scrollToBottom = (smooth = true) => {
+    const el = chatContainerRef.current;
+    if (!el) return;
+    try {
+      el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    } catch (e) {
+      el.scrollTop = el.scrollHeight;
+    }
+  };
+
   useEffect(() => {
-    const scrollToBottom = (smooth = true) => {
-      const el = chatContainerRef.current;
-      if (!el) return;
-      try {
-        // prefer smooth scrolling when available
-        el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
-      } catch (e) {
-        // fallback
-        el.scrollTop = el.scrollHeight;
-      }
-    };
+    if (forcedAutoScrollRef.current) {
+      // ensure the view follows the typing LLM smoothly
+      scrollToBottom(true);
+      return;
+    }
 
     if (!shouldAutoScrollRef.current) return; // user scrolled up, don't auto-scroll
 
-    // Small delay to ensure content is rendered; smaller delay gives smoother feel while typing
     const timeoutId = setTimeout(() => scrollToBottom(true), 50);
-
     return () => clearTimeout(timeoutId);
   }, [history, messages]);
 
@@ -106,8 +109,10 @@ export const RetroChat = () => {
         { role: "model" as const, parts: [{ text: "" }] },
       ]);
 
-      // Animate text into the last history entry
-      let idx = 0;
+  // Animate text into the last history entry
+  let idx = 0;
+  // Force auto-scroll while the model is typing
+  forcedAutoScrollRef.current = true;
       const chunk = 2; // characters per tick
       const tickMs = 24; // ~40fps
 
@@ -134,6 +139,8 @@ export const RetroChat = () => {
             window.clearInterval(typingIntervalRef.current);
             typingIntervalRef.current = null;
           }
+          // Release forced auto-scroll when typing is finished
+          forcedAutoScrollRef.current = false;
         }
       }, tickMs);
     },
@@ -149,14 +156,14 @@ export const RetroChat = () => {
     <div className="w-full h-full flex items-center justify-center">
       <div className="w-full max-w-3xl h-full border-2 border-green-700 bg-green-950/70 relative overflow-hidden">
       <TargetCursor spinDuration={7} />
-      <div className="relative w-full h-[calc(100%-64px)] overflow-hidden">
+  <div className="relative w-full h-[calc(100%-64px)] overflow-hidden">
         <Noise patternAlpha={25} />
 
         <div
           ref={chatContainerRef}
           onScroll={handleChatScroll}
           className={
-            "w-full h-full p-4 text-green-600 retro-text overflow-y-scroll scroll-smooth [&::-webkit-scrollbar]:w-2 dark:[&::-webkit-scrollbar-thumb]:bg-green-700"
+    "w-full h-full p-4 text-green-600 retro-text overflow-y-scroll overflow-x-hidden scroll-smooth [&::-webkit-scrollbar]:w-2 dark:[&::-webkit-scrollbar-thumb]:bg-green-700"
           }
         >
           {history.map((message, index) => (
