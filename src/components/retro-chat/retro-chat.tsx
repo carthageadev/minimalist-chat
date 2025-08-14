@@ -122,7 +122,7 @@ export const RetroChat = () => {
   });
 
   return (
-    <div className="w-full h-full border-2 border-green-700 bg-green-950/70 relative overflow-hidden">
+  <div className="w-full max-w-3xl mx-auto h-full border-2 border-green-700 bg-green-950/70 relative overflow-hidden p-2 sm:p-4 rounded-md box-border">
       <TargetCursor spinDuration={7} />
       <div className="relative w-full h-[calc(100%-64px)] overflow-hidden">
         <Noise patternAlpha={25} />
@@ -131,8 +131,9 @@ export const RetroChat = () => {
           ref={chatContainerRef}
           onScroll={handleChatScroll}
           className={
-            "w-full h-full p-4 text-green-600 retro-text overflow-y-scroll scroll-smooth [&::-webkit-scrollbar]:w-2 dark:[&::-webkit-scrollbar-thumb]:bg-green-700"
+            "w-full h-full p-4 text-green-600 retro-text overflow-y-auto scroll-smooth min-h-0 break-words whitespace-pre-wrap [&::-webkit-scrollbar]:w-2 dark:[&::-webkit-scrollbar-thumb]:bg-green-700"
           }
+          style={{ boxSizing: "border-box" }}
         >
           {history.map((message, index) => (
             <p
