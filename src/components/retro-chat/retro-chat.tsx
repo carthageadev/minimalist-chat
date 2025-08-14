@@ -12,6 +12,7 @@ export const RetroChat = () => {
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
+  const [chatWidth, setChatWidth] = useState<number>(406);
 
   const [messages, setMessages] = useState<string[]>([]);
 
@@ -68,6 +69,21 @@ export const RetroChat = () => {
     shouldAutoScrollRef.current = distanceFromBottom < 80;
   };
 
+  // Measure chat column width and update on resize so FuzzyText can wrap correctly on mobile
+  useEffect(() => {
+    const measure = () => {
+      const el = chatContainerRef.current;
+      if (!el) return;
+      // subtract padding to get inner text area width
+      const width = Math.max(100, el.clientWidth - 16);
+      setChatWidth(width);
+    };
+
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
   const sendMessageMutation = api.chat.sendMessage.useMutation({
     onMutate: () => {
       setIsLoading(true);
@@ -122,7 +138,8 @@ export const RetroChat = () => {
   });
 
   return (
-    <div className="w-full h-full border-2 border-green-700 bg-green-950/70 relative overflow-hidden">
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="w-full max-w-3xl h-full border-2 border-green-700 bg-green-950/70 relative overflow-hidden">
       <TargetCursor spinDuration={7} />
       <div className="relative w-full h-[calc(100%-64px)] overflow-hidden">
         <Noise patternAlpha={25} />
@@ -139,12 +156,12 @@ export const RetroChat = () => {
               key={message.parts[0]?.text ?? index}
               className="cursor-target mb-2"
             >
-              <FuzzyText baseIntensity={0.008} enableHover={false}>
+              <FuzzyText baseIntensity={0.008} enableHover={false} containerWidth={chatWidth}>
                 {message.role}: {message.parts[0]!.text}
               </FuzzyText>
             </p>
           ))}
-          <FuzzyText baseIntensity={0.008} enableHover={false}>
+          <FuzzyText baseIntensity={0.008} enableHover={false} containerWidth={chatWidth}>
             {messages.length > 0 && "model: "}
             {messages}
           </FuzzyText>
@@ -180,6 +197,7 @@ export const RetroChat = () => {
           )}
         </button>
       </form>
+      </div>
     </div>
   );
 };
