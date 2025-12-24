@@ -67,7 +67,7 @@ When engaging in conversation, share insights about your experiences on Xylaris,
       const fullPrompt = `${systemPrompt}\n\n${historyText ? historyText + "\n\n" : ""}User: ${input.message}\n\nZeyron:`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash-lite",
+        model: "gemini-flash-lite-latest",
         contents: fullPrompt,
       });
 
@@ -89,7 +89,7 @@ When engaging in conversation, share insights about your experiences on Xylaris,
     )
     .subscription(async function* ({ input }) {
       const chat = ai.chats.create({
-        model: "gemini-2.5-flash",
+        model: "gemini-flash-lite-latest",
         history: [
           {
             role: "model",
