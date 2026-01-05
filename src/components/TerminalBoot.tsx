@@ -43,20 +43,7 @@ export default function TerminalBoot({ onComplete }: { onComplete: () => void })
         };
     }, [onComplete]);
 
-    // Unused effects kept for preserving code structure if needed in future
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setWalkerFrame(prev => (prev + 1) % WALKER_FRAMES.length);
-        }, 300);
-        return () => clearInterval(interval);
-    }, []);
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setBgData(prev => [Math.random().toString(16).substring(2, 20), ...prev].slice(0, 40));
-        }, 50);
-        return () => clearInterval(interval);
-    }, []);
 
     if (rebootStep === "flash") {
         return (
