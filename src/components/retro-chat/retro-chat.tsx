@@ -51,51 +51,51 @@ export const RetroChat = () => {
   // we keep auto-scrolling regardless of user's scroll position until typing finishes.
   const scrollAnimationRef = useRef<number | null>(null);
   const lastScrollHeightRef = useRef<number>(0);
-  
+
   const scrollToBottom = (smooth = true) => {
     const el = chatContainerRef.current;
     if (!el) return;
-    
+
     const targetHeight = el.scrollHeight;
     const currentScroll = el.scrollTop;
     const clientHeight = el.clientHeight;
     const targetScroll = targetHeight - clientHeight;
-    
+
     // If already at bottom or very close, don't animate
     if (Math.abs(currentScroll - targetScroll) < 2) return;
-    
+
     if (scrollAnimationRef.current) {
       cancelAnimationFrame(scrollAnimationRef.current);
     }
-    
+
     if (!smooth) {
       el.scrollTop = targetScroll;
       return;
     }
-    
+
     // Ultra smooth scroll with easing
     const startScroll = currentScroll;
     const distance = targetScroll - startScroll;
     const startTime = performance.now();
     const duration = Math.min(300, Math.abs(distance) * 0.5); // Adaptive duration
-    
+
     const animate = (currentTime: number) => {
       const elapsed = currentTime - startTime;
       const progress = Math.min(elapsed / duration, 1);
-      
+
       // Ease out cubic for ultra smooth feel
       const easeOut = 1 - Math.pow(1 - progress, 3);
       const newScroll = startScroll + (distance * easeOut);
-      
+
       el.scrollTop = newScroll;
-      
+
       if (progress < 1) {
         scrollAnimationRef.current = requestAnimationFrame(animate);
       } else {
         scrollAnimationRef.current = null;
       }
     };
-    
+
     scrollAnimationRef.current = requestAnimationFrame(animate);
   };
 
@@ -116,7 +116,7 @@ export const RetroChat = () => {
     if (!el) return;
     // while forced auto-scroll is active, ignore user scroll inputs
     if (forcedAutoScrollRef.current) return;
-    
+
     const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight);
     // Use a larger threshold and debounce to prevent jitter
     shouldAutoScrollRef.current = distanceFromBottom < 100;
@@ -138,73 +138,77 @@ export const RetroChat = () => {
     return () => window.removeEventListener("resize", measure);
   }, []);
 
-  const sendMessageMutation = api.chat.sendMessage.useMutation({
-    onMutate: () => {
-      setIsLoading(true);
-      // Keep input focused immediately when starting mutation
-      setTimeout(() => inputRef.current?.focus(), 0);
-    },
-    onSuccess: (response) => {
-      const fullText = response || "No response";
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message.trim() || isLoading) return;
 
-      // Append user's turn and an empty model turn we will fill while typing
+    const currentMessage = message;
+    setMessage("");
+    setIsLoading(true);
+
+    // Add user message to history
+    setHistory((prev) => [
+      ...prev,
+      { role: "user", parts: [{ text: currentMessage }] },
+    ]);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: currentMessage,
+          history: history,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch");
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No reader");
+
+      // Add a placeholder for the model response
       setHistory((prev) => [
         ...prev,
-        { role: "user" as const, parts: [{ text: message }] },
-        { role: "model" as const, parts: [{ text: "" }] },
+        { role: "model", parts: [{ text: "" }] },
       ]);
 
-  // Animate text into the last history entry
-  let idx = 0;
-  // Force auto-scroll while the model is typing
-  forcedAutoScrollRef.current = true;
-      const chunk = 2; // characters per tick
-      const tickMs = 24; // ~40fps
+      forcedAutoScrollRef.current = true;
+      const decoder = new TextDecoder();
 
-      if (typingIntervalRef.current) {
-        window.clearInterval(typingIntervalRef.current);
-      }
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      typingIntervalRef.current = window.setInterval(() => {
-        idx = Math.min(fullText.length, idx + chunk);
+        const chunk = decoder.decode(value, { stream: true });
+
         setHistory((prev) => {
-          if (prev.length === 0) return prev;
-          const copy = prev.slice();
-          const prevLast = copy[copy.length - 1];
-          const last = {
-            role: prevLast?.role ?? "model",
-            parts: [{ text: fullText.slice(0, idx) }],
-          } as { role: "user" | "model"; parts: { text: string }[] };
-          copy[copy.length - 1] = last;
-          return copy;
+          const last = prev[prev.length - 1];
+          if (last && last.role === "model") {
+            const copy = [...prev];
+            copy[copy.length - 1] = {
+              ...last,
+              parts: [{ text: (last.parts[0]?.text ?? "") + chunk }],
+            };
+            return copy;
+          }
+          return prev;
         });
 
-        // Only scroll if content height actually changed (prevents jitter)
-        if (forcedAutoScrollRef.current) {
-          const el = chatContainerRef.current;
-          if (el && el.scrollHeight !== lastScrollHeightRef.current) {
-            lastScrollHeightRef.current = el.scrollHeight;
-            scrollToBottom(true);
-          }
+        // Scroll when new text arrives
+        const el = chatContainerRef.current;
+        if (el) {
+          scrollToBottom(true);
         }
-
-        if (idx >= fullText.length) {
-          if (typingIntervalRef.current) {
-            window.clearInterval(typingIntervalRef.current);
-            typingIntervalRef.current = null;
-          }
-          // Release forced auto-scroll when typing is finished
-          forcedAutoScrollRef.current = false;
-        }
-      }, tickMs);
-    },
-    onSettled: () => {
+      }
+    } catch (error) {
+      console.error("Chat error:", error);
+    } finally {
       setIsLoading(false);
-      setMessage("");
-      // Ensure input stays focused after everything is done
+      forcedAutoScrollRef.current = false;
       setTimeout(() => inputRef.current?.focus(), 0);
-    },
-  });
+    }
+  };
 
   return (
     <div className="w-full h-full p-2 sm:p-4 md:p-6 flex items-start justify-center overflow-x-hidden">
@@ -219,54 +223,50 @@ export const RetroChat = () => {
             className={
               "w-full h-full p-4 text-green-600 retro-text overflow-y-auto overflow-x-hidden scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style]:none [scrollbar-width]:none"
             }
-        >
-          {history.map((message, index) => (
-            <p
-              key={message.parts[0]?.text ?? index}
-              className="cursor-target mb-2"
-            >
-              <FuzzyText baseIntensity={0.008} enableHover={false} containerWidth={chatWidth}>
-                {message.role}: {message.parts[0]!.text}
-              </FuzzyText>
-            </p>
-          ))}
-          <FuzzyText baseIntensity={0.008} enableHover={false} containerWidth={chatWidth}>
-            {messages.length > 0 && "model: "}
-            {messages}
-          </FuzzyText>
+          >
+            {history.map((message, index) => (
+              <p
+                key={index}
+                className="cursor-target mb-2"
+              >
+                <FuzzyText baseIntensity={0.008} enableHover={false} containerWidth={chatWidth}>
+                  {message.role}: {message.parts[0]!.text}
+                </FuzzyText>
+              </p>
+            ))}
+            <FuzzyText baseIntensity={0.008} enableHover={false} containerWidth={chatWidth}>
+              {messages.length > 0 && "model: "}
+              {messages}
+            </FuzzyText>
+          </div>
         </div>
-      </div>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          sendMessageMutation.mutate({ message, history });
-          // refocus immediately so the input doesn't lose focus when submitting
-          inputRef.current?.focus();
-        }}
-        className="w-full h-[64px] border-t-2 border-green-700 flex gap-2 overflow-x-hidden min-w-0"
-      >
-        <input
-          type="text"
-          disabled={isLoading}
-          placeholder={isLoading ? "Please wait..." : "Message..."}
-          ref={inputRef}
-          value={message}
-          onChange={(e) => setMessage(e.target.value)}
-          autoFocus
-          className="text-2xl text-green-600 w-full h-full px-3 bg-transparent border-none outline-none border-r-2 border-green-700 relative cursor-target min-w-0 flex-1"
-        />
-        <button
-          disabled={isLoading}
-          className="bg-green-700 text-white px-3 py-2 w-[64px] cursor-target flex items-center justify-center"
+        <form
+          onSubmit={handleSubmit}
+          className="w-full h-[64px] border-t-2 border-green-700 flex gap-2 overflow-x-hidden min-w-0"
         >
-          {isLoading ? (
-            <IconPlayerRecordFilled color="#006400" className="animate-pulse" />
-          ) : (
-            <IconArrowRight />
-          )}
-        </button>
-      </form>
+          <input
+            type="text"
+            disabled={isLoading}
+            placeholder={isLoading ? "SYSTEM PROCESSING..." : "Type passcode..."}
+            ref={inputRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            autoFocus
+            className="text-2xl text-green-600 w-full h-full px-3 bg-transparent border-none outline-none border-r-2 border-green-700 relative cursor-target min-w-0 flex-1"
+          />
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="bg-green-700 text-white px-3 py-2 w-[64px] cursor-target flex items-center justify-center"
+          >
+            {isLoading ? (
+              <IconPlayerRecordFilled color="#006400" className="animate-pulse" />
+            ) : (
+              <IconArrowRight />
+            )}
+          </button>
+        </form>
       </div>
     </div>
   );
