@@ -1,0 +1,88 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { motion } from "motion/react";
+import Noise from "./noise/noise";
+
+const BOOT_SEQUENCE = [
+    "> SEARCHING_FOR_UPLINK...",
+    "> RELAY_0xAF4_OPEN",
+    "> AUTH: AHMED BEN ABDALLAH",
+    "> ACCESS_ING_RESTRICTED_PROTOCOL",
+    "> WARN: CORRUPT_MEMORY_BLOCK_77",
+    "> OVERRIDE_SAFETY_CHECK",
+    "> SYNCING_NEURAL_LINK...",
+    "> SYNC_STABLE_98%",
+    "> DECRYPTING_STREAM...",
+    "> CONNECTION_ESTABLISHED",
+];
+
+const WALKER_FRAMES = [
+    "   (^_^)  \n  /|   |\\ \n   /   \\  ",
+    "   (o_o)  \n  /|___|\\ \n   |   |  ",
+    "   (ô_ô)  \n  /|___|\\ \n  /     \\ "
+];
+
+export default function TerminalBoot({ onComplete }: { onComplete: () => void }) {
+    const [lines, setLines] = useState<string[]>([]);
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [walkerFrame, setWalkerFrame] = useState(0);
+    const [bgData, setBgData] = useState<string[]>([]);
+    const [rebootStep, setRebootStep] = useState<"none" | "flash" | "dark">("none");
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setWalkerFrame(prev => (prev + 1) % WALKER_FRAMES.length);
+        }, 300);
+        return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setBgData(prev => [Math.random().toString(16).substring(2, 20), ...prev].slice(0, 40));
+        }, 50);
+        return () => clearInterval(interval);
+    }, []);
+
+    useEffect(() => {
+        // Start directly with the flash -> reboot sequence
+        const timer = setTimeout(() => {
+            setRebootStep("flash");
+            setTimeout(() => {
+                setRebootStep("dark");
+                setTimeout(() => {
+                    onComplete();
+                }, 300);
+            }, 150); // Sharp flash duration
+        }, 100); // Initial delay before sequence starts
+        return () => clearTimeout(timer);
+    }, [onComplete]);
+
+    if (rebootStep === "none") {
+        return null; // Or return <div className="fixed inset-0 bg-black z-[1000]" /> if you want a blank black screen
+    }
+
+    if (rebootStep === "flash") {
+        return (
+            <div className="fixed inset-0 z-[1000] bg-black overflow-hidden flex items-center justify-center">
+                <Noise patternAlpha={80} patternRefreshInterval={1} />
+                <div className="absolute inset-0 flex items-center justify-center font-doto text-green-500 text-6xl break-all opacity-50 px-20 text-center">
+                    {Array.from({ length: 150 }).map(() => Math.random().toString(36)[2]).join('')}
+                </div>
+                <div className="relative z-10 text-green-400 text-6xl font-black tracking-[0.5em] animate-pulse font-doto drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]">
+                    SIGNAL_INTERRUPT_
+                </div>
+            </div>
+        );
+    }
+
+    if (rebootStep === "dark") {
+        return (
+            <div className="fixed inset-0 z-[1000] bg-black flex items-center justify-center font-doto text-green-600">
+                <div className="text-2xl tracking-[0.5em] animate-pulse">SYSTEM_REBOOTING_</div>
+            </div>
+        );
+    }
+
+    return null;
+}
