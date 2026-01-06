@@ -95,7 +95,7 @@ export default function TerminalBoot({ onComplete }: { onComplete: () => void })
         // Clue Scheduler
         const clueInterval = setInterval(() => {
             if (Math.random() > 0.8) {
-                const randomClue = CLUES[Math.floor(Math.random() * CLUES.length)];
+                const randomClue = CLUES[Math.floor(Math.random() * CLUES.length)] || "SIGNAL_LOST";
                 targetTextRef.current = randomClue;
 
                 // Return to main text after 2 seconds
