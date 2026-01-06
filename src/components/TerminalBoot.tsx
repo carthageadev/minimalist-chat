@@ -24,33 +24,35 @@ const WALKER_FRAMES = [
 ];
 
 export default function TerminalBoot({ onComplete }: { onComplete: () => void }) {
-    const [rebootStep, setRebootStep] = useState<"flash" | "dark">("flash");
+    const [rebootStep, setRebootStep] = useState<"flash" | "dark" | "checking">("checking");
 
     useEffect(() => {
-        const handleInteraction = () => {
-            setRebootStep("dark");
-            setTimeout(() => {
-                onComplete();
-            }, 600);
-        };
+        if (window.innerWidth >= 768) {
+            onComplete();
+        } else {
+            setRebootStep("flash");
+        }
 
-        window.addEventListener("click", handleInteraction);
-        window.addEventListener("keydown", handleInteraction);
-
-        return () => {
-            window.removeEventListener("click", handleInteraction);
-            window.removeEventListener("keydown", handleInteraction);
-        };
     }, [onComplete]);
 
 
+
+    const [glitchText, setGlitchText] = useState("");
+
+    useEffect(() => {
+        if (rebootStep !== "flash") return;
+        const interval = setInterval(() => {
+            setGlitchText(Array.from({ length: 150 }).map(() => Math.random().toString(36)[2]).join(''));
+        }, 50);
+        return () => clearInterval(interval);
+    }, [rebootStep]);
 
     if (rebootStep === "flash") {
         return (
             <div className="fixed inset-0 z-[1000] bg-black overflow-hidden flex items-center justify-center">
                 <Noise patternAlpha={80} patternRefreshInterval={1} />
-                <div className="absolute inset-0 flex items-center justify-center font-doto text-green-500 text-6xl break-all opacity-50 px-20 text-center">
-                    {Array.from({ length: 150 }).map(() => Math.random().toString(36)[2]).join('')}
+                <div className="absolute inset-0 flex items-center justify-center font-doto text-green-500 text-6xl break-all opacity-50 px-20 text-center select-none pointer-events-none">
+                    {glitchText}
                 </div>
                 <div className="relative z-10 text-green-400 text-6xl font-black tracking-[0.5em] animate-pulse font-doto drop-shadow-[0_0_15px_rgba(34,197,94,0.8)]">
                     SIGNAL_INTERRUPT_
@@ -65,6 +67,11 @@ export default function TerminalBoot({ onComplete }: { onComplete: () => void })
                 <div className="text-2xl tracking-[0.5em] animate-pulse">SYSTEM_REBOOTING_</div>
             </div>
         );
+    }
+
+    // Avoid flash on desktop
+    if (rebootStep === "checking") {
+        return <div className="fixed inset-0 z-[1000] bg-black" />;
     }
 
     return null;
