@@ -34,11 +34,17 @@ const CLUES = [
     "TRY_AGAIN_LATER"
 ];
 
-export default function TerminalBoot({ onComplete }: { onComplete: () => void }) {
+export default function TerminalBoot({ onComplete, forceMode }: { onComplete: () => void, forceMode?: "chat" | "glitch" }) {
     const [rebootStep, setRebootStep] = useState<"flash" | "dark" | "checking">("checking");
     const [mainText, setMainText] = useState("SIGNAL_INTERRUPT_");
 
     useEffect(() => {
+        // Handle forced modes directly
+        if (forceMode === "glitch") {
+            setRebootStep("flash");
+            return;
+        }
+
         // Time-based Gatekeeper
         // Only open between 1:00 AM and 2:00 AM
         const now = new Date();
@@ -49,7 +55,7 @@ export default function TerminalBoot({ onComplete }: { onComplete: () => void })
         } else {
             setRebootStep("flash");
         }
-    }, [onComplete]);
+    }, [onComplete, forceMode]);
 
     useEffect(() => {
         // Secret Code: "O" + "U" + "T"
