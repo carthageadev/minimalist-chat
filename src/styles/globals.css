@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -16,6 +17,12 @@
     color: #ffbf00;
     text-shadow: 0 0 10px #ffbf00;
   }
+
+
+  .bg-black {
+    filter: contrast(1.15) !important;
+}
+
 
   /* Chat box centering styles */
   .w-\[450px\] {
