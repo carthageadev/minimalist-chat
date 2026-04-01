@@ -45,8 +45,9 @@ export default function TerminalBoot({ onComplete, forceMode }: { onComplete: ()
             return;
         }
 
-        // Time-based Gatekeeper
+        // Time-based Gatekeeper (Disabled for testing)
         // Only open between 1:00 AM and 2:00 AM
+        /*
         const now = new Date();
         const currentHour = now.getHours();
 
@@ -55,6 +56,8 @@ export default function TerminalBoot({ onComplete, forceMode }: { onComplete: ()
         } else {
             setRebootStep("flash");
         }
+        */
+        onComplete();
     }, [onComplete, forceMode]);
 
     useEffect(() => {

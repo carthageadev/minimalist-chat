@@ -14,9 +14,9 @@ export default function Home() {
   const [isBooted, setIsBooted] = useState(false);
 
   useEffect(() => {
-    // Randomly select mode on mount
-    const modes: AppMode[] = ["chat", "glitch", "crt", "lcd"];
-    const randomMode = modes[Math.floor(Math.random() * modes.length)] ?? "chat";
+    // Forced chat mode for testing
+    const modes: AppMode[] = ["chat"];
+    const randomMode = "chat";
 
     // Debug: override with URL params for testing ?mode=crt
     const urlParams = new URLSearchParams(window.location.search);
