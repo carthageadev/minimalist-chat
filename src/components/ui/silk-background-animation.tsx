@@ -209,7 +209,7 @@ export const Component = () => {
                 textShadow: '0 0 40px rgba(255, 255, 255, 0.1)'
               }}
             >
-              silk
+              hello
             </h1>
 
             {/* Subtitle */}
@@ -222,11 +222,13 @@ export const Component = () => {
                 ${isLoaded ? 'animate-fade-in-up-delay' : ''}
               `}
             >
-              <span className="inline-block">flowing</span>
-              <span className="mx-4 text-gray-500">•</span>
-              <span className="inline-block">texture</span>
-              <span className="mx-4 text-gray-500">•</span>
-              <span className="inline-block">art</span>
+              <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0">
+                <span className="inline-block">Ahmed</span>
+                <span className="hidden md:inline-block mx-4 text-gray-500">•</span>
+                <span className="inline-block">Ben</span>
+                <span className="hidden md:inline-block mx-4 text-gray-500">•</span>
+                <span className="inline-block">Abdallah</span>
+              </div>
             </div>
           </div>
         </div>
