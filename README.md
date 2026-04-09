@@ -1,15 +1,10 @@
-# [REDACTED]
+# Fresh Master Branch
 
-```
-SIGNAL_INTERRUPT_
-SYSTEM_REBOOTING_
-```
+This branch has been reset for a clean start.
 
-An ARG experience.
+## Branch Strategy
+- **master**: Fresh development line.
+- **beta-test**: Archived version of the previous codebase.
 
-**The Keeper awaits.**
-
----
-
-*Seek and find.*  
-— Ahmed Ben Abdallah
+## Getting Started
+The current entry point is [index.html](./index.html).
