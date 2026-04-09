@@ -38,6 +38,9 @@ export const metadata: Metadata = {
     description: "A digital showcase of flowing texture and minimalist art.",
     images: ["/og-image.png"],
   },
+  icons: {
+    icon: "/favicon.svg",
+  },
   themeColor: "#050505",
 };
 
@@ -50,9 +53,9 @@ export default function RootLayout({
     <html
       lang="en"
       style={{ colorScheme: "dark" }}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      className={`${geistSans.variable} ${geistMono.variable} h-dvh antialiased dark overflow-hidden`}
     >
-      <body className="min-h-full flex flex-col bg-black text-white">
+      <body className="h-dvh flex flex-col bg-black text-white overflow-hidden">
         {children}
       </body>
     </html>

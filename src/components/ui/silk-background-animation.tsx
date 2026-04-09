@@ -124,8 +124,12 @@ export const Component = () => {
         html, body {
           margin: 0;
           padding: 0;
-          overflow-x: hidden;
+          overflow: hidden;
+          height: 100dvh;
+          width: 100vw;
+          position: fixed;
           font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+          touch-action: none;
         }
         
         @keyframes fadeInUp {
@@ -183,7 +187,7 @@ export const Component = () => {
         }
       `}</style>
       
-      <div className="relative h-screen w-full overflow-hidden bg-black">
+      <div className="relative h-dvh w-full overflow-hidden bg-black">
         {/* Animated Silk Background */}
         <canvas 
           ref={canvasRef}
