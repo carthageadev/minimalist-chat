@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { BlurFade } from '@/components/ui/blur-fade';
+import { Waves } from 'lucide-react';
 
 export const Component = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -135,6 +136,32 @@ export const Component = () => {
           height: 100%;
           z-index: 0;
         }
+
+        @keyframes wave {
+          0%, 100% { transform: translateY(0) rotate(0); }
+          50% { transform: translateY(-10px) rotate(5deg); }
+        }
+
+        .wave-text {
+          animation: wave 3s ease-in-out infinite;
+        }
+
+        .hand-wave {
+          display: inline-block;
+          animation: hand-wave 2.5s infinite;
+          transform-origin: 70% 70%;
+        }
+
+        @keyframes hand-wave {
+          0% { transform: rotate(0deg); }
+          10% { transform: rotate(14deg); }
+          20% { transform: rotate(-8deg); }
+          30% { transform: rotate(14deg); }
+          40% { transform: rotate(-4deg); }
+          50% { transform: rotate(10deg); }
+          60% { transform: rotate(0deg); }
+          100% { transform: rotate(0deg); }
+        }
       `}</style>
       
       <div className="relative h-dvh w-full overflow-hidden bg-black">
@@ -151,26 +178,31 @@ export const Component = () => {
         <div className="relative z-20 flex h-full items-center justify-center">
           <div className="text-center px-8">
             <BlurFade delay={0.3} yOffset={20}>
-              {/* Main Title */}
-              <h1 
-                className="text-6xl sm:text-8xl md:text-9xl lg:text-[12rem] xl:text-[14rem] font-light tracking-[-0.05em] leading-none text-white mix-blend-difference"
-                style={{ 
-                  textShadow: '0 0 40px rgba(255, 255, 255, 0.1)'
-                }}
-              >
-                hello
-              </h1>
+              <div className="flex flex-col items-center gap-6">
+                <div className="wave-text">
+                  <Waves className="w-12 h-12 text-white/50 mb-2" />
+                </div>
+                {/* Main Title */}
+                <h1 
+                  className="text-6xl sm:text-8xl md:text-9xl lg:text-[12rem] xl:text-[14rem] font-light tracking-[-0.05em] leading-none text-white mix-blend-difference"
+                  style={{ 
+                    textShadow: '0 0 40px rgba(255, 255, 255, 0.1)'
+                  }}
+                >
+                  hello <span className="hand-wave">👋</span>
+                </h1>
+              </div>
             </BlurFade>
 
             <BlurFade delay={0.6} yOffset={10}>
               {/* Subtitle */}
               <div className="mt-8 text-lg md:text-xl lg:text-2xl font-extralight tracking-[0.2em] uppercase text-gray-300/80 mix-blend-overlay">
                 <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0">
-                  <span className="inline-block">Ahmed</span>
+                  <span className="inline-block hover:scale-110 transition-transform">Ahmed</span>
                   <span className="hidden md:inline-block mx-4 text-gray-500">•</span>
-                  <span className="inline-block">Ben</span>
+                  <span className="inline-block hover:scale-110 transition-transform">Ben</span>
                   <span className="hidden md:inline-block mx-4 text-gray-500">•</span>
-                  <span className="inline-block">Abdallah</span>
+                  <span className="inline-block hover:scale-110 transition-transform">Abdallah</span>
                 </div>
               </div>
             </BlurFade>
@@ -180,8 +212,8 @@ export const Component = () => {
         {/* Corner Accent */}
         <div className="absolute top-8 left-8 z-30">
           <BlurFade delay={1} yOffset={-10}>
-            <div className="text-xs font-light tracking-widest uppercase text-gray-500/40 mix-blend-overlay">
-              2025
+            <div className="text-xs font-light tracking-widest uppercase text-gray-500/40 mix-blend-overlay flex items-center gap-2">
+              <span className="animate-pulse">●</span> 2025
             </div>
           </BlurFade>
         </div>
