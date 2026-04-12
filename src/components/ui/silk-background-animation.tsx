@@ -1,16 +1,11 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { BlurFade } from '@/components/ui/blur-fade';
 
 export const Component = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | null>(null);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsLoaded(true), 300);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -132,51 +127,6 @@ export const Component = () => {
           touch-action: none;
         }
         
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(2rem);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        @keyframes fadeInUpDelay {
-          from {
-            opacity: 0;
-            transform: translateY(1rem);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        @keyframes fadeInCorner {
-          from {
-            opacity: 0;
-            transform: translateY(-1rem);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        .animate-fade-in-up {
-          animation: fadeInUp 1s ease-out forwards;
-        }
-        
-        .animate-fade-in-up-delay {
-          animation: fadeInUpDelay 1s ease-out 0.3s forwards;
-        }
-        
-        .animate-fade-in-corner {
-          animation: fadeInCorner 1s ease-out 0.9s forwards;
-        }
-        
         .silk-canvas {
           position: absolute;
           top: 0;
@@ -200,54 +150,40 @@ export const Component = () => {
         {/* Content */}
         <div className="relative z-20 flex h-full items-center justify-center">
           <div className="text-center px-8">
-            {/* Main Title */}
-            <h1 
-              className={`
-                text-6xl sm:text-8xl md:text-9xl lg:text-[12rem] xl:text-[14rem] 
-                font-light tracking-[-0.05em] leading-none
-                text-white mix-blend-difference
-                opacity-0
-                ${isLoaded ? 'animate-fade-in-up' : ''}
-              `}
-              style={{ 
-                textShadow: '0 0 40px rgba(255, 255, 255, 0.1)'
-              }}
-            >
-              hello
-            </h1>
+            <BlurFade delay={0.3} yOffset={20}>
+              {/* Main Title */}
+              <h1 
+                className="text-6xl sm:text-8xl md:text-9xl lg:text-[12rem] xl:text-[14rem] font-light tracking-[-0.05em] leading-none text-white mix-blend-difference"
+                style={{ 
+                  textShadow: '0 0 40px rgba(255, 255, 255, 0.1)'
+                }}
+              >
+                hello
+              </h1>
+            </BlurFade>
 
-            {/* Subtitle */}
-            <div 
-              className={`
-                mt-8 text-lg md:text-xl lg:text-2xl 
-                font-extralight tracking-[0.2em] uppercase
-                text-gray-300/80 mix-blend-overlay
-                opacity-0
-                ${isLoaded ? 'animate-fade-in-up-delay' : ''}
-              `}
-            >
-              <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0">
-                <span className="inline-block">Ahmed</span>
-                <span className="hidden md:inline-block mx-4 text-gray-500">•</span>
-                <span className="inline-block">Ben</span>
-                <span className="hidden md:inline-block mx-4 text-gray-500">•</span>
-                <span className="inline-block">Abdallah</span>
+            <BlurFade delay={0.6} yOffset={10}>
+              {/* Subtitle */}
+              <div className="mt-8 text-lg md:text-xl lg:text-2xl font-extralight tracking-[0.2em] uppercase text-gray-300/80 mix-blend-overlay">
+                <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-0">
+                  <span className="inline-block">Ahmed</span>
+                  <span className="hidden md:inline-block mx-4 text-gray-500">•</span>
+                  <span className="inline-block">Ben</span>
+                  <span className="hidden md:inline-block mx-4 text-gray-500">•</span>
+                  <span className="inline-block">Abdallah</span>
+                </div>
               </div>
-            </div>
+            </BlurFade>
           </div>
         </div>
 
         {/* Corner Accent */}
-        <div 
-          className={`
-            absolute top-8 left-8 z-30
-            text-xs font-light tracking-widest uppercase
-            text-gray-500/40 mix-blend-overlay
-            opacity-0
-            ${isLoaded ? 'animate-fade-in-corner' : ''}
-          `}
-        >
-          2025
+        <div className="absolute top-8 left-8 z-30">
+          <BlurFade delay={1} yOffset={-10}>
+            <div className="text-xs font-light tracking-widest uppercase text-gray-500/40 mix-blend-overlay">
+              2025
+            </div>
+          </BlurFade>
         </div>
       </div>
     </>
