@@ -2,7 +2,7 @@
 
 import React from "react"
 import { cx } from "class-variance-authority"
-import { AnimatePresence, motion } from "motion/react"
+import { AnimatePresence, motion } from "framer-motion"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -33,7 +33,6 @@ const ColorOrb: React.FC<OrbProps> = ({
   }
 
   const palette = { ...fallbackTones, ...tones }
-
   const dimValue = parseInt(dimension.replace("px", ""), 10)
 
   const blurStrength =
@@ -70,107 +69,7 @@ const ColorOrb: React.FC<OrbProps> = ({
         "--mask": maskRadius,
       } as React.CSSProperties}
     >
-      <style jsx>{`
-        @property --angle {
-          syntax: "<angle>";
-          inherits: false;
-          initial-value: 0deg;
-        }
-
-        .color-orb {
-          display: grid;
-          grid-template-areas: "stack";
-          overflow: hidden;
-          border-radius: 50%;
-          position: relative;
-          transform: scale(1.1);
-        }
-
-        .color-orb::before,
-        .color-orb::after {
-          content: "";
-          display: block;
-          grid-area: stack;
-          width: 100%;
-          height: 100%;
-          border-radius: 50%;
-          transform: translateZ(0);
-        }
-
-        .color-orb::before {
-          background:
-            conic-gradient(
-              from calc(var(--angle) * 2) at 25% 70%,
-              var(--accent3),
-              transparent 20% 80%,
-              var(--accent3)
-            ),
-            conic-gradient(
-              from calc(var(--angle) * 2) at 45% 75%,
-              var(--accent2),
-              transparent 30% 60%,
-              var(--accent2)
-            ),
-            conic-gradient(
-              from calc(var(--angle) * -3) at 80% 20%,
-              var(--accent1),
-              transparent 40% 60%,
-              var(--accent1)
-            ),
-            conic-gradient(
-              from calc(var(--angle) * 2) at 15% 5%,
-              var(--accent2),
-              transparent 10% 90%,
-              var(--accent2)
-            ),
-            conic-gradient(
-              from calc(var(--angle) * 1) at 20% 80%,
-              var(--accent1),
-              transparent 10% 90%,
-              var(--accent1)
-            ),
-            conic-gradient(
-              from calc(var(--angle) * -2) at 85% 10%,
-              var(--accent3),
-              transparent 20% 80%,
-              var(--accent3)
-            );
-          box-shadow: inset var(--base) 0 0 var(--shadow) calc(var(--shadow) * 0.2);
-          filter: blur(var(--blur)) contrast(var(--contrast));
-          animation: spin var(--spin-duration) linear infinite;
-        }
-
-        .color-orb::after {
-          background-image: radial-gradient(
-            circle at center,
-            var(--base) var(--dot),
-            transparent var(--dot)
-          );
-          background-size: calc(var(--dot) * 2) calc(var(--dot) * 2);
-          backdrop-filter: blur(calc(var(--blur) * 2)) contrast(calc(var(--contrast) * 2));
-          mix-blend-mode: overlay;
-        }
-
-        .color-orb[style*="--mask: 0%"]::after {
-          mask-image: none;
-        }
-
-        .color-orb:not([style*="--mask: 0%"])::after {
-          mask-image: radial-gradient(black var(--mask), transparent 75%);
-        }
-
-        @keyframes spin {
-          to {
-            --angle: 360deg;
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .color-orb::before {
-            animation: none;
-          }
-        }
-      `}</style>
+      <div className="orb-inner" />
     </div>
   )
 }
@@ -228,18 +127,18 @@ export function MorphPanel() {
   )
 
   return (
-    <div className="flex items-center justify-center" style={{ width: FORM_WIDTH, height: FORM_HEIGHT }}>
+    <div className="flex items-center justify-center" style={{ width: FORM_WIDTH, height: 44 }}>
       <motion.div
         ref={wrapperRef}
         data-panel
         className={cx(
-          "bg-background relative bottom-8 z-3 flex flex-col items-center overflow-hidden border max-sm:bottom-5"
+          "bg-black/80 backdrop-blur-xl relative z-[100] flex flex-col items-center overflow-hidden border border-white/10 shadow-2xl"
         )}
         initial={false}
         animate={{
-          width: showForm ? FORM_WIDTH : "auto",
+          width: showForm ? FORM_WIDTH : 120,
           height: showForm ? FORM_HEIGHT : 44,
-          borderRadius: showForm ? 14 : 20,
+          borderRadius: showForm ? 14 : 22,
         }}
         transition={{
           type: "spring",
@@ -262,39 +161,33 @@ function DockBar() {
   const { showForm, triggerOpen } = useFormContext()
   return (
     <footer className="mt-auto flex h-[44px] items-center justify-center whitespace-nowrap select-none">
-      <div className="flex items-center justify-center gap-2 px-3 max-sm:h-10 max-sm:px-2">
+      <div className="flex items-center justify-center gap-2 px-3">
         <div className="flex w-fit items-center gap-2">
           <AnimatePresence mode="wait">
-            {showForm ? (
-              <motion.div
-                key="blank"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 0 }}
-                exit={{ opacity: 0 }}
-                className="h-5 w-5"
-              />
-            ) : (
+            {showForm ? null : (
               <motion.div
                 key="orb"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
                 transition={{ duration: 0.2 }}
               >
-                <ColorOrb dimension="24px" tones={{ base: "oklch(22.64% 0 0)" }} />
+                <ColorOrb dimension="20px" tones={{ base: "oklch(100% 0 0)" }} />
               </motion.div>
             )}
           </AnimatePresence>
         </div>
 
-        <Button
-          type="button"
-          className="flex h-fit flex-1 justify-end rounded-full px-2 !py-0.5"
-          variant="ghost"
-          onClick={triggerOpen}
-        >
-          <span className="truncate text-white/70">Ask AI</span>
-        </Button>
+        {!showForm && (
+          <Button
+            type="button"
+            className="flex h-fit flex-1 justify-end rounded-full px-2 !py-0.5 text-white/50 hover:text-white"
+            variant="ghost"
+            onClick={triggerOpen}
+          >
+            <span className="truncate text-xs tracking-widest font-light">ASK AI</span>
+          </Button>
+        )}
       </div>
     </footer>
   )
@@ -323,68 +216,45 @@ function InputForm({ ref, onSuccess }: { ref: React.Ref<HTMLTextAreaElement>; on
   return (
     <form
       onSubmit={handleSubmit}
-      className="absolute bottom-0"
-      style={{ width: FORM_WIDTH, height: FORM_HEIGHT, pointerEvents: showForm ? "all" : "none" }}
+      className={cn("absolute inset-0 transition-opacity duration-300", showForm ? "opacity-100" : "opacity-0 pointer-events-none")}
+      style={{ width: FORM_WIDTH, height: FORM_HEIGHT }}
     >
-      <AnimatePresence>
-        {showForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ type: "spring", stiffness: 550 / SPEED_FACTOR, damping: 45, mass: 0.7 }}
-            className="flex h-full flex-col p-1"
+      <div className="flex h-full flex-col p-2">
+        <div className="flex justify-between items-center px-2 py-1">
+          <div className="flex items-center gap-2">
+            <ColorOrb dimension="20px" tones={{ base: "oklch(100% 0 0)" }} />
+            <p className="text-white/40 text-[10px] tracking-[0.2em] uppercase font-light select-none">
+              AI Input
+            </p>
+          </div>
+          <button
+            type="submit"
+            ref={btnRef}
+            className="text-white/20 hover:text-white/60 transition-colors flex items-center gap-2 rounded-[12px] bg-transparent text-center select-none"
           >
-            <div className="flex justify-between py-1">
-              <p className="text-foreground z-2 ml-[38px] flex items-center gap-[6px] select-none font-medium">
-                AI Input
-              </p>
-              <button
-                type="submit"
-                ref={btnRef}
-                className="text-foreground right-4 mt-1 flex -translate-y-[3px] cursor-pointer items-center justify-center gap-1 rounded-[12px] bg-transparent pr-1 text-center select-none"
-              >
-                <KeyHint>⌘</KeyHint>
-                <KeyHint className="w-fit">Enter</KeyHint>
-              </button>
-            </div>
-            <textarea
-              ref={ref}
-              placeholder="Ask me anything..."
-              name="message"
-              className="h-full w-full resize-none scroll-py-2 rounded-md p-4 outline-0 bg-transparent text-white"
-              required
-              onKeyDown={handleKeys}
-              spellCheck={false}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showForm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute top-2 left-3"
-          >
-            <ColorOrb dimension="24px" tones={{ base: "oklch(22.64% 0 0)" }} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <KeyHint>⌘</KeyHint>
+            <KeyHint className="w-fit">Enter</KeyHint>
+          </button>
+        </div>
+        <textarea
+          ref={ref}
+          placeholder="Ask me anything..."
+          name="message"
+          className="flex-1 w-full resize-none scroll-py-2 rounded-md p-4 outline-0 bg-transparent text-white text-sm placeholder:text-white/20"
+          required
+          onKeyDown={handleKeys}
+          spellCheck={false}
+        />
+      </div>
     </form>
   )
 }
-
-const SPRING_LOGO = { type: "spring", stiffness: 350 / SPEED_FACTOR, damping: 35 } as const
 
 function KeyHint({ children, className }: { children: string; className?: string }) {
   return (
     <kbd
       className={cx(
-        "text-foreground flex h-6 w-fit items-center justify-center rounded-sm border px-[6px] font-sans text-[10px] opacity-50",
+        "text-white/30 flex h-6 w-fit items-center justify-center rounded-sm border border-white/10 px-[6px] font-sans text-[9px]",
         className
       )}
     >
