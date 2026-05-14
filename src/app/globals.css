@@ -238,14 +238,11 @@ body {
   transform-style: preserve-3d;
 }
 
-/* Global code block styling fixes */
+/* NUCLEAR FIX: Remove all borders from code block interiors (fixes button group seen in screenshot) */
 pre, code, pre *, code * {
-  border-color: rgba(255, 255, 255, 0.05) !important;
-}
-
-/* Remove borders from code block action buttons and their containers */
-pre button, .streamdown button, pre div, pre header, pre footer {
   border: none !important;
+  border-width: 0 !important;
+  outline: none !important;
   box-shadow: none !important;
 }
 
@@ -253,6 +250,7 @@ pre button, .streamdown button, pre div, pre header, pre footer {
 pre button {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
   border-radius: 6px !important;
+  background-color: transparent !important;
 }
 
 pre button:hover {
@@ -268,8 +266,9 @@ a, [role="dialog"], [class*="link"] {
   text-decoration: none !important;
 }
 
-/* Ensure the header/container of code blocks is also subtle */
+/* Ensure the main code block container itself is clean and dark */
 pre {
   background-color: #050505 !important;
-  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.03) !important;
+  border-radius: 12px !important;
 }
