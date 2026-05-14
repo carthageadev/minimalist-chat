@@ -269,11 +269,28 @@ pre button:hover {
 }
 
 /* Link and Dialog styling */
-a, [role="dialog"], [class*="link"] {
+a, [class*="link"] {
   border: none !important;
   box-shadow: none !important;
   text-decoration: none !important;
 }
+
+/* EXTREME DIALOG BORDER FIX */
+[role="dialog"], dialog {
+  border: 1px solid rgba(255, 255, 255, 0.03) !important;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5) !important;
+  background-color: #050505 !important;
+}
+
+[role="dialog"] button, dialog button {
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
+  background-color: transparent !important;
+}
+
+[role="dialog"] button:hover, dialog button:hover {
+  background-color: rgba(255, 255, 255, 0.05) !important;
+}
+
 
 /* Ensure the main code block container itself is clean and dark */
 pre {
