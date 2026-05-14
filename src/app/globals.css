@@ -242,3 +242,9 @@ body {
 pre, code {
   border-color: var(--border) !important;
 }
+
+/* Remove ugly borders from code block buttons */
+pre button, code button {
+  border: none !important;
+  box-shadow: none !important;
+}
