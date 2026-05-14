@@ -157,7 +157,6 @@ export default function Home() {
                   }`}
                 >
                   <Streamdown
-                    animated
                     plugins={{ code }}
                     isAnimating={status === "streaming" && i === messages.length - 1}
                   >
