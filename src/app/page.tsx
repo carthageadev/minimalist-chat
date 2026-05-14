@@ -4,8 +4,15 @@ import { InputBar } from "@/components/ui/input-bar";
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import OpenAI from "openai";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { Copy, Check } from "lucide-react";
 
 // Initialize the Hermes AI client
+
 const client = new OpenAI({
   baseURL: "https://hermes.ai.unturf.com/v1",
   apiKey: "dummy-api-key",
@@ -19,7 +26,28 @@ type Message = {
   content: string;
 };
 
+const CopyButton = ({ text }: { text: string }) => {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-1.5 rounded-md hover:bg-white/10 transition-colors text-zinc-400 hover:text-white"
+      title="Copy code"
+    >
+      {copied ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+    </button>
+  );
+};
+
 export default function Home() {
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<"ready" | "streaming" | "submitted" | "idle">("ready");
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -116,7 +144,63 @@ export default function Home() {
                       : "bg-zinc-900 border border-white/5 text-zinc-200 rounded-tl-none shadow-2xl"
                   }`}
                 >
-                  {m.content}
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    components={{
+                      code({ node, inline, className, children, ...props }: any) {
+                        const match = /language-(\w+)/.exec(className || "");
+                        return !inline && match ? (
+                          <div className="my-4 rounded-lg overflow-hidden border border-white/10 shadow-inner bg-[#0d0d0d]">
+                            <div className="flex items-center justify-between px-4 py-2 bg-zinc-800/50 border-b border-white/5">
+                              <span className="text-[10px] font-mono text-zinc-400 uppercase tracking-wider">{match[1]}</span>
+                              <CopyButton text={String(children).replace(/\n$/, "")} />
+                            </div>
+                            <SyntaxHighlighter
+
+                              style={vscDarkPlus}
+                              language={match[1]}
+                              PreTag="div"
+                              className="!m-0 !bg-transparent !p-4"
+                              {...props}
+                            >
+                              {String(children).replace(/\n$/, "")}
+                            </SyntaxHighlighter>
+                          </div>
+                        ) : (
+                          <code className="bg-white/10 px-1.5 py-0.5 rounded-md font-mono text-xs text-emerald-400" {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                      p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc pl-5 mb-3 space-y-1">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal pl-5 mb-3 space-y-1">{children}</ol>,
+                      li: ({ children }) => <li className="text-zinc-300">{children}</li>,
+                      h1: ({ children }) => <h1 className="text-xl font-bold mb-4 mt-2 text-white">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-lg font-bold mb-3 mt-2 text-white">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-base font-bold mb-2 mt-2 text-white">{children}</h3>,
+                      blockquote: ({ children }) => (
+                        <blockquote className="border-l-4 border-emerald-500/50 pl-4 py-1 italic text-zinc-400 my-4 bg-emerald-500/5 rounded-r-lg">
+                          {children}
+                        </blockquote>
+                      ),
+                      a: ({ children, href }) => (
+                        <a href={href} className="text-emerald-400 hover:underline transition-all" target="_blank" rel="noopener noreferrer">
+                          {children}
+                        </a>
+                      ),
+                      table: ({ children }) => (
+                        <div className="overflow-x-auto my-4 rounded-lg border border-white/10">
+                          <table className="w-full text-left border-collapse">{children}</table>
+                        </div>
+                      ),
+                      thead: ({ children }) => <thead className="bg-white/5 text-zinc-400 text-xs uppercase">{children}</thead>,
+                      th: ({ children }) => <th className="px-4 py-2 font-semibold">{children}</th>,
+                      td: ({ children }) => <td className="px-4 py-2 border-t border-white/5 text-zinc-300">{children}</td>,
+                    }}
+                  >
+                    {m.content}
+                  </ReactMarkdown>
                 </div>
               </motion.div>
             ))}
