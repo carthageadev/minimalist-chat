@@ -156,16 +156,13 @@ export default function Home() {
                       : "bg-zinc-900 border border-white/5 text-zinc-200 rounded-tl-none shadow-2xl"
                   }`}
                 >
-                  <div className="prose prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-pre:p-0 prose-pre:bg-transparent prose-code:text-emerald-400 prose-code:before:content-none prose-code:after:content-none">
-                    <Streamdown
-                      animated
-                      plugins={{ code }}
-                      isAnimating={status === "streaming" && i === messages.length - 1}
-                    >
-                      {m.content}
-                    </Streamdown>
-                  </div>
-
+                  <Streamdown
+                    animated
+                    plugins={{ code }}
+                    isAnimating={status === "streaming" && i === messages.length - 1}
+                  >
+                    {m.content}
+                  </Streamdown>
                 </div>
               </motion.div>
             ))}
