@@ -167,7 +167,7 @@ export default function Home() {
             ))}
           </AnimatePresence>
 
-          {status === "streaming" && (
+          {status === "streaming" && messages[messages.length - 1]?.role === "assistant" && messages[messages.length - 1]?.content === "" && (
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -178,6 +178,7 @@ export default function Home() {
               </div>
             </motion.div>
           )}
+
         </div>
       </div>
 
