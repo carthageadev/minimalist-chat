@@ -238,13 +238,22 @@ body {
   transform-style: preserve-3d;
 }
 
-/* NUCLEAR FIX: Remove all borders from code block interiors (fixes button group seen in screenshot) */
+/* NUCLEAR FIX: Remove all borders from code block interiors */
 pre, code, pre *, code * {
   border: none !important;
   border-width: 0 !important;
   outline: none !important;
   box-shadow: none !important;
 }
+
+/* Surgical fix for the stubborn Streamdown action buttons container */
+[data-streamdown="code-block-actions"] {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
 
 /* Sleek hover animations for code block buttons */
 pre button {
