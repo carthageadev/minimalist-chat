@@ -239,12 +239,18 @@ body {
 }
 
 /* Global code block styling fixes */
-pre, code {
-  border-color: var(--border) !important;
+pre, code, pre *, code * {
+  border-color: rgba(255, 255, 255, 0.05) !important;
 }
 
-/* Remove ugly borders from code block buttons */
-pre button, code button {
+/* Remove borders from code block action buttons */
+pre button, .streamdown button {
   border: none !important;
   box-shadow: none !important;
+}
+
+/* Ensure the header/container of code blocks is also subtle */
+pre {
+  background-color: #050505 !important;
+  border: 1px solid rgba(255, 255, 255, 0.05) !important;
 }
