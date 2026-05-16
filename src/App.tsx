@@ -234,7 +234,7 @@ export default function App() {
           <span>E2E Channel</span>
         </div>
         <div className="flex items-center gap-2">
-          <span>Hermes-3_Llama-3.1</span>
+          <span>Ahmed AI | Hermes-3</span>
           <Terminal size={12} className="text-zinc-600" />
         </div>
       </header>
@@ -267,7 +267,7 @@ export default function App() {
                   className="w-full flex flex-col gap-2"
                 >
                   <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
-                    {msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}
+                    {msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Ahmed_AI'}
                   </span>
                   <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? 'text-zinc-400' : msg.role === 'system' ? 'text-blue-400/80' : 'text-zinc-100'} markdown-body`}>
                     {msg.role === 'assistant' ? (
@@ -363,7 +363,7 @@ export default function App() {
                   animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
                   className="w-full flex flex-col gap-2"
                 >
-                  <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">Hermes_System</span>
+                  <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">Ahmed_AI</span>
                   <div className="text-zinc-100 py-1">
                     <motion.div 
                       animate={{ opacity: [0, 1, 0] }} 
