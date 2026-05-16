@@ -19,7 +19,7 @@ export default async function handler(req: Request) {
   try {
     const { messages } = await req.json();
     if (!messages || !Array.isArray(messages)) {
-      return new Response(JSON.stringify({ error: "Messages array is required." }), { 
+      return new Response(JSON.stringify({ error: "Messages array is required." }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -29,7 +29,7 @@ export default async function handler(req: Request) {
       role: "system",
       content: `Today's date is ${new Date().toISOString().split('T')[0]}. Be bold, forward-thinking, and highly agentic. Aggressively auto-correct and decipher any user typos or misspellings (e.g., understand "doanld rump" as "Donald Trump" without mentioning the typo). Assume the user's underlying intent based on context and immediately provide useful answers. Do NOT ask excessive follow-up questions—take the initiative, make reasonable assumptions, and get things done. You have access to a web search tool. To use it, output EXACTLY the following format: [SEARCH: your search query here] and stop right away. The user will automatically reply with the search results, and then you can formulate your final answer based on the results.`
     };
-    
+
     const formattedMessages = [systemMessage, ...messages];
 
     const stream = await client.chat.completions.create({
@@ -63,7 +63,7 @@ export default async function handler(req: Request) {
 
   } catch (error: any) {
     console.error("Error calling inference API:", error);
-    return new Response(JSON.stringify({ error: error.message || "Failed to get a response from the AI." }), { 
+    return new Response(JSON.stringify({ error: error.message || "Failed to get a response from the AI." }), {
       status: 500,
       headers: { 'Content-Type': 'application/json' }
     });
