@@ -1,0 +1,6 @@
+{
+  "name": "Hermes Mobile Chat",
+  "description": "A clean, mobile-first AI chat application using the Hermes-3-Llama-3.1 model over a private endpoint.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

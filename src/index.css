@@ -1,0 +1,133 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500&family=JetBrains+Mono:wght@400&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  background-color: #09090b; /* zinc-950 */
+  color: #fafafa;
+  overflow: hidden;
+}
+
+/* Minimalist transparent scrollbars */
+::-webkit-scrollbar {
+  width: 2px;
+  height: 2px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08); /* Faint thin line */
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+}
+
+/* Force hide scrollbars completely on specific elements */
+.hide-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+.hide-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+textarea {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+textarea::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Elegant minimalist markdown */
+.markdown-body {
+    font-family: var(--font-sans);
+    word-break: break-word;
+}
+.markdown-body p {
+    margin-bottom: 1.25em;
+    line-height: 1.75;
+}
+.markdown-body p:last-child {
+    margin-bottom: 0;
+}
+.markdown-body pre {
+    background-color: #121214;
+    border: 1px solid #27272a;
+    padding: 1.25rem;
+    border-radius: 0.75rem;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    margin-top: 1.5em;
+    margin-bottom: 1.5em;
+}
+.markdown-body code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background-color: #18181b;
+    padding: 0.2em 0.4em;
+    border-radius: 0.25rem;
+    color: #e4e4e7;
+}
+.markdown-body pre code {
+    background-color: transparent;
+    padding: 0;
+    color: inherit;
+    border-radius: 0;
+}
+.markdown-body a {
+    color: #fafafa;
+    text-decoration: underline;
+    text-decoration-color: #52525b;
+    text-underline-offset: 4px;
+    transition: text-decoration-color 0.2s;
+}
+.markdown-body a:hover {
+    text-decoration-color: #fafafa;
+}
+.markdown-body ul {
+    list-style-type: none;
+    padding-left: 0;
+    margin-bottom: 1.25em;
+}
+.markdown-body ul li {
+    position: relative;
+    padding-left: 1.5em;
+    margin-bottom: 0.5em;
+}
+.markdown-body ul li::before {
+    content: "•";
+    position: absolute;
+    left: 0;
+    color: #52525b;
+}
+.markdown-body ol {
+    list-style-type: decimal;
+    padding-left: 1.5em;
+    margin-bottom: 1.25em;
+}
+.markdown-body ol li {
+    margin-bottom: 0.5em;
+    padding-left: 0.5em;
+}
+.markdown-body strong {
+    font-weight: 500;
+    color: #fff;
+}

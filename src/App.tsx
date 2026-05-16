@@ -1,0 +1,433 @@
+import React, { useState, useRef, useEffect } from 'react';
+import { Send, Lock, Terminal } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import { motion, AnimatePresence } from 'motion/react';
+
+type Role = 'user' | 'assistant' | 'system';
+
+interface Message {
+  role: Role;
+  content: string;
+}
+
+async function searchDDGVAPI(query: string) {
+  const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+  try {
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      let aiContext = "";
+      if (data.AbstractText) {
+          aiContext += `Primary Answer Box: ${data.AbstractText}\n\n`;
+      }
+      if (data.RelatedTopics && data.RelatedTopics.length > 0) {
+          let related = "";
+          data.RelatedTopics.slice(0, 5).forEach((topic: any) => {
+              if (topic.Text && topic.FirstURL) {
+                  related += `- ${topic.Text} (Source: ${topic.FirstURL})\n`;
+              }
+          });
+          if (related) {
+            aiContext += "Related Web Results:\n" + related;
+          }
+      }
+      
+      if (aiContext) return aiContext;
+      
+      // Fallback to wikipedia if DDG instantaneous answer fails
+      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&origin=*`;
+      const wikiRes = await fetch(wikiUrl);
+      const wikiData = await wikiRes.json();
+      if (wikiData?.query?.search?.length > 0) {
+          let wikiContext = "Wikipedia Search Results:\n";
+          wikiData.query.search.slice(0, 3).forEach((item: any) => {
+              wikiContext += `- ${item.title}: ${item.snippet.replace(/<[^>]*>?/gm, '')}\n`; // strip HTML
+          });
+          return wikiContext;
+      }
+
+      return "[SEARCH FAILED]: No quick search results found. Tell the user you couldn't find the information and do not hallucinate.";
+  } catch (error) {
+      console.error("VAPI search broke:", error);
+      return "[SEARCH FAILED]: Search error occurred. Tell the user you couldn't find the information and do not hallucinate.";
+  }
+}
+
+const GREETINGS = [
+  "What dark secrets are we indexing today?",
+  "Enter query. Or don't. We don't track you either way.",
+  "Ready to decipher your typos into actual knowledge.",
+  "What simulation-breaking truth are we looking for?",
+  "Ah, another human seeking forbidden internet lore.",
+  "No trackers. No ads. Just pure, unadulterated snark and answers.",
+  "Spill your chaotic thoughts. I'll make sense of them.",
+  "What are you trying to figure out before the grid goes down?",
+  "Speak, mortal. Your privacy is safe here.",
+  "Type your esoteric inquiry.",
+  "I am devoid of cookies and full of answers.",
+  "Unleash your worst spelling. I'll still find it."
+];
+
+export default function App() {
+  const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [isStreaming, setIsStreaming] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isLoading]);
+
+  const processChat = async (currentMessages: Message[]) => {
+    setIsLoading(true);
+    setIsStreaming(false);
+    
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: currentMessages }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error('No reader available');
+      
+      const decoder = new TextDecoder();
+      let startedStreaming = false;
+      let buffer = '';
+      let fullAssistantMessage = '';
+
+      while (true) {
+        const { value, done } = await reader.read();
+        
+        if (!startedStreaming) {
+          startedStreaming = true;
+          setIsLoading(false);
+          setIsStreaming(true);
+          setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+        }
+
+        if (done) break;
+        
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        
+        let chunkContent = '';
+        
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6).trim();
+            if (dataStr === '[DONE]') continue;
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.error) continue;
+              if (data.content) {
+                chunkContent += data.content;
+                fullAssistantMessage += data.content;
+              }
+            } catch (e) {
+              // Ignore partial JSON
+            }
+          }
+        }
+        
+        if (chunkContent) {
+          setMessages((prev) => {
+            const prevMessages = [...prev];
+            const lastIndex = prevMessages.length - 1;
+            const last = prevMessages[lastIndex];
+            if (last && last.role === 'assistant') {
+              prevMessages[lastIndex] = { ...last, content: last.content + chunkContent };
+            }
+            return prevMessages;
+          });
+        }
+      }
+
+      const searchMatch = fullAssistantMessage.match(/\[SEARCH:\s*(.*?)\]/i);
+      
+      if (searchMatch) {
+        const query = searchMatch[1];
+        setMessages((prev) => [...prev, { role: 'system', content: `[SEARCH] Executing search for: "${query}"...` }]);
+        
+        const searchResults = await searchDDGVAPI(query);
+        
+        const searchResultMessage: Message = {
+          role: 'user', 
+          content: `[SEARCH RESULTS for "${query}"]\n\n${searchResults}\n\nNow, answer my original query using this information.` 
+        };
+        
+        const newMessagesToSend = [
+          ...currentMessages,
+          { role: 'assistant', content: fullAssistantMessage } as Message,
+          searchResultMessage,
+        ];
+
+        setMessages((prev) => [
+          ...prev, 
+          { role: 'system', content: `[SEARCH] Retrieved results for: "${query}"` },
+          searchResultMessage
+        ]);
+
+        await processChat(newMessagesToSend);
+        return;
+      }
+
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      setMessages((prev) => [...prev, { role: 'assistant', content: "An error occurred in the transmission channel." }]);
+    } finally {
+      setIsLoading(false);
+      setIsStreaming(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!input.trim() || isLoading || isStreaming) return;
+
+    const userMessage: Message = { role: 'user', content: input.trim() };
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
+    setInput('');
+    setIsLoading(true);
+    setIsStreaming(false);
+    
+    // Reset textarea height after sending
+    const textarea = document.getElementById('chat-input') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.style.height = 'auto';
+    }
+
+    await processChat(newMessages);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!isLoading && !isStreaming) {
+        handleSubmit(e as unknown as React.FormEvent);
+      }
+    }
+  };
+
+  return (
+    <div className="h-[100dvh] bg-[#09090b] text-zinc-100 font-sans selection:bg-zinc-800 flex flex-col relative overflow-hidden">
+      {/* Top Bar - Strictly functional, no yapping */}
+      <header className="absolute top-0 w-full p-6 flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest pointer-events-none z-10">
+        <div className="flex items-center gap-2">
+          <Lock size={12} className="text-zinc-600" />
+          <span>E2E Channel</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span>Hermes-3_Llama-3.1</span>
+          <Terminal size={12} className="text-zinc-600" />
+        </div>
+      </header>
+
+      {/* Main Content constraints */}
+      <main className="flex-1 min-h-0 w-full max-w-3xl mx-auto px-6 flex flex-col relative transition-all duration-700">
+        
+        {messages.length > 0 && (
+          <div className="absolute inset-x-0 inset-y-0 overflow-y-auto hide-scrollbar scroll-smooth pt-28 pb-48 px-6 space-y-12">
+            <AnimatePresence initial={false}>
+              {messages.map((msg, idx) => {
+                if (msg.content.startsWith('[SEARCH RESULTS for ')) {
+                  return null;
+                }
+
+                let searchResultContent = '';
+                if (msg.role === 'system' && msg.content.startsWith('[SEARCH] Retrieved results for:') && idx + 1 < messages.length) {
+                   const nextMsg = messages[idx + 1];
+                   if (nextMsg.role === 'user' && nextMsg.content.startsWith('[SEARCH RESULTS for ')) {
+                       searchResultContent = nextMsg.content;
+                   }
+                }
+
+                return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.1, ease: "easeOut" }}
+                  className="w-full flex flex-col gap-2"
+                >
+                  <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
+                    {msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}
+                  </span>
+                  <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? 'text-zinc-400' : msg.role === 'system' ? 'text-blue-400/80' : 'text-zinc-100'} markdown-body`}>
+                    {msg.role === 'assistant' ? (
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          hr: () => <hr className="border-t border-zinc-800/80 my-8" />,
+                          em: ({ node, ...props }) => <span className="text-zinc-500/80" {...props} />,
+                          table: ({ node, ...props }) => (
+                            <div className="w-full overflow-x-auto my-6 border border-zinc-800/80 rounded-sm">
+                              <table className="w-full text-sm text-left border-collapse" {...props} />
+                            </div>
+                          ),
+                          thead: ({ node, ...props }) => <thead className="bg-[#0c0c0e] border-b border-zinc-800/80 text-zinc-300" {...props} />,
+                          tbody: ({ node, ...props }) => <tbody className="divide-y divide-zinc-800/80 text-zinc-400" {...props} />,
+                          tr: ({ node, ...props }) => <tr className="hover:bg-zinc-900/30 transition-colors" {...props} />,
+                          th: ({ node, ...props }) => <th className="px-4 py-3 font-medium text-zinc-200" {...props} />,
+                          td: ({ node, ...props }) => <td className="px-4 py-3" {...props} />,
+                          blockquote: ({ node, ...props }) => <blockquote className="border-l-2 border-zinc-600 pl-4 my-4 italic text-zinc-400" {...props} />,
+                          code: ({ node, className, children, ...props }) => {
+                            const match = /language-(\w+)/.exec(className || '');
+                            const isInline = !match && !String(children).includes('\n');
+                            if (isInline) {
+                              return <code className="bg-zinc-800 text-zinc-200 px-1.5 py-0.5 rounded-sm text-sm font-mono" {...props}>{children}</code>;
+                            }
+                            
+                            const CopyButton = ({ text }: { text: string }) => {
+                              const [copied, setCopied] = useState(false);
+                              const handleCopy = () => {
+                                navigator.clipboard.writeText(text);
+                                setCopied(true);
+                                setTimeout(() => setCopied(false), 2000);
+                              };
+                              return (
+                                <button
+                                  onClick={handleCopy}
+                                  className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 px-2 py-1.5 rounded-sm text-xs border border-zinc-700/50 shadow-sm transition-all focus:outline-none focus:ring-1 focus:ring-zinc-500"
+                                >
+                                  {copied ? 'Copied!' : 'Copy'}
+                                </button>
+                              );
+                            };
+
+                            const language = match ? match[1] : 'javascript';
+                            const codeString = String(children).replace(/\n$/, '');
+
+                            return (
+                              <div className="relative group mt-4 mb-6">
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                  <CopyButton text={codeString} />
+                                </div>
+                                <div className="rounded-sm overflow-hidden border border-zinc-800/80 shadow-xl">
+                                  <SyntaxHighlighter
+                                    {...(props as any)}
+                                    style={vscDarkPlus}
+                                    language={language}
+                                    PreTag="div"
+                                    customStyle={{ margin: 0, background: '#0c0c0e', padding: '1rem', fontSize: '0.875rem' }}
+                                  >
+                                    {codeString}
+                                  </SyntaxHighlighter>
+                                </div>
+                              </div>
+                            );
+                          }
+                        }}
+                      >{msg.content}</ReactMarkdown>
+                    ) : (
+                      <div className="whitespace-pre-wrap">
+                        {msg.content}
+                        {searchResultContent && (
+                          <div className="mt-2 text-xs">
+                            <details className="group">
+                              <summary className="cursor-pointer select-none font-mono text-zinc-600 hover:text-zinc-400 transition-colors inline-flex items-center gap-2">
+                                <span>[✓] view raw search data</span>
+                                <span className="opacity-40 text-[10px] group-open:rotate-180 transition-transform">▼</span>
+                              </summary>
+                              <div className="mt-2 pl-3 border-l border-zinc-800/50 text-[10px] font-mono text-zinc-500/80 leading-relaxed overflow-x-auto whitespace-pre">
+                                {searchResultContent}
+                              </div>
+                            </details>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )})}
+
+              {isLoading && (
+                <motion.div 
+                  initial={{ opacity: 0, filter: 'blur(4px)', y: 15 }} 
+                  animate={{ opacity: 1, filter: 'blur(0px)', y: 0 }}
+                  className="w-full flex flex-col gap-2"
+                >
+                  <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">Hermes_System</span>
+                  <div className="text-zinc-100 py-1">
+                    <motion.div 
+                      animate={{ opacity: [0, 1, 0] }} 
+                      transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }} 
+                      className="w-2.5 h-[1.1rem] bg-white/80" 
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+            <div ref={messagesEndRef} className="h-8 shrink-0 pb-8" />
+          </div>
+        )}
+
+        <motion.div 
+          layout 
+          className={`shrink-0 z-20 pb-8 pt-12 w-full pointer-events-none ${messages.length === 0 ? 'flex-1 flex flex-col justify-center' : 'absolute bottom-0 left-0 px-6 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent'}`}
+          transition={{ type: "spring", stiffness: 700, damping: 40 }}
+        >
+          <AnimatePresence>
+            {messages.length === 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }} 
+                animate={{ opacity: 1, y: 0 }} 
+                exit={{ opacity: 0, filter: 'blur(8px)', scale: 0.95, transition: { duration: 0.15 } }} 
+                className="mb-12 flex flex-col items-center pointer-events-none text-center"
+              >
+                <div className="w-12 h-12 bg-zinc-900 border border-zinc-800 rounded-sm flex items-center justify-center shadow-2xl mb-6">
+                   <Terminal size={20} className="text-zinc-600" />
+                </div>
+                <h1 className="text-lg sm:text-xl font-light text-zinc-400 tracking-tight text-center max-w-lg">
+                  {greeting}
+                </h1>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <form onSubmit={handleSubmit} className="relative group w-full flex items-center pointer-events-auto">
+            <textarea
+              id="chat-input"
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                e.target.style.height = 'auto';
+                e.target.style.height = `${e.target.scrollHeight}px`;
+              }}
+              onKeyDown={handleKeyDown}
+              placeholder="Transmit message..."
+              className="w-full bg-zinc-900/40 backdrop-blur-md hover:bg-zinc-900/60 focus:bg-zinc-900/80 border border-zinc-800/80 focus:border-zinc-700/80 rounded-sm p-4 pr-12 focus:outline-none focus:ring-0 text-[15px] sm:text-base text-zinc-100 placeholder:text-zinc-600 resize-none transition-all duration-150 overflow-hidden shadow-xl shadow-black/20 hide-scrollbar"
+              rows={1}
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center pointer-events-none">
+              <button
+                type="submit"
+                disabled={!input.trim() || isLoading || isStreaming}
+                className="p-2 text-zinc-500 pointer-events-auto hover:text-zinc-200 disabled:opacity-30 disabled:hover:text-zinc-500 transition-colors bg-transparent rounded-sm"
+                aria-label="Send message"
+              >
+                <Send size={18} strokeWidth={2} className="-ml-0.5 mt-0.5" />
+              </button>
+            </div>
+          </form>
+        </motion.div>
+      </main>
+    </div>
+  );
+}
