@@ -77,6 +77,7 @@ export default function App() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [showContact, setShowContact] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -228,12 +229,36 @@ export default function App() {
   return (
     <div className="h-[100dvh] bg-[#09090b] text-zinc-100 font-sans selection:bg-zinc-800 flex flex-col relative overflow-hidden">
       {/* Top Bar - Strictly functional, no yapping */}
-      <header className="absolute top-0 w-full p-6 flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest pointer-events-none z-10">
-        <div className="flex items-center gap-2">
-          <Lock size={12} className="text-zinc-600" />
-          <span>E2E Channel</span>
+      <header className="absolute top-0 w-full p-6 flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10">
+        <div className="relative pointer-events-auto">
+          <button 
+            onClick={() => setShowContact(!showContact)}
+            className="flex items-center gap-2 hover:text-zinc-300 transition-colors focus:outline-none"
+          >
+            <Lock size={12} className="text-zinc-600" />
+            <span>E2E Channel</span>
+          </button>
+          
+          <AnimatePresence>
+            {showContact && (
+              <motion.div
+                initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                className="absolute top-full left-0 mt-2 p-3 bg-zinc-900 border border-zinc-800 rounded-sm shadow-2xl min-w-[200px] z-50 normal-case tracking-normal"
+              >
+                <p className="text-zinc-400 text-[11px] mb-1 font-sans">Have any questions?</p>
+                <a 
+                  href="mailto:ahmeddev@email.com" 
+                  className="text-zinc-100 text-[12px] font-mono hover:underline block"
+                >
+                  ahmeddev@email.com
+                </a>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 pointer-events-none">
           <span>Hermes-3_Llama-3.1</span>
           <Terminal size={12} className="text-zinc-600" />
         </div>
