@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Lock, Terminal } from 'lucide-react';
+import { Send, Lock, Terminal, Maximize, Minimize, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -78,6 +78,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [showContact, setShowContact] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -87,6 +88,24 @@ export default function App() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isLoading]);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
 
   const processChat = async (currentMessages: Message[]) => {
     setIsLoading(true);
@@ -229,40 +248,75 @@ export default function App() {
   return (
     <div className="fixed inset-0 bg-[#09090b] text-zinc-100 font-sans selection:bg-zinc-800 flex flex-col overflow-hidden">
       {/* Top Bar - Strictly functional, no yapping */}
-      <header className="absolute top-0 w-full p-6 flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10">
-        <div className="relative pointer-events-auto">
+      <header className="absolute top-0 w-full p-6 flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10 pointer-events-auto">
+        <div className="flex items-center gap-3">
           <button 
-            onClick={() => setShowContact(!showContact)}
+            onClick={() => setShowContact(true)}
             className="flex items-center gap-2 hover:text-zinc-300 transition-colors focus:outline-none"
           >
             <Lock size={12} className="text-zinc-600" />
             <span>E2E Channel</span>
           </button>
           
-          <AnimatePresence>
-            {showContact && (
-              <motion.div
-                initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                className="absolute top-full left-0 mt-2 p-3 bg-zinc-900 border border-zinc-800 rounded-sm shadow-2xl min-w-[200px] z-50 normal-case tracking-normal"
-              >
-                <p className="text-zinc-400 text-[11px] mb-1 font-sans">Have any questions?</p>
-                <a 
-                  href="mailto:ahmeddev@email.com" 
-                  className="text-zinc-100 text-[12px] font-mono hover:underline block"
-                >
-                  ahmeddev@email.com
-                </a>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <button
+            onClick={toggleFullscreen}
+            className="p-1.5 hover:text-zinc-300 transition-colors focus:outline-none text-zinc-600 hover:bg-zinc-800/50 rounded-sm"
+            aria-label="Toggle Fullscreen"
+          >
+            {isFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
+          </button>
         </div>
-        <div className="flex items-center gap-2 pointer-events-none">
+        
+        <button 
+          onClick={() => setShowContact(true)}
+          className="flex items-center gap-2 hover:text-zinc-300 transition-colors focus:outline-none"
+        >
           <span>Hermes-3_Llama-3.1</span>
           <Terminal size={12} className="text-zinc-600" />
-        </div>
+        </button>
       </header>
+
+      {/* Contact Modal */}
+      <AnimatePresence>
+        {showContact && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 pointer-events-auto"
+            onClick={() => setShowContact(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-sm bg-[#0c0c0e] border border-zinc-800 rounded-sm shadow-2xl p-8 flex flex-col items-center text-center normal-case tracking-normal"
+            >
+              <button 
+                onClick={() => setShowContact(false)}
+                className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none"
+              >
+                <X size={16} />
+              </button>
+              <div className="w-12 h-12 bg-[#09090b] border border-zinc-800 rounded-full flex items-center justify-center mb-4 shadow-inner">
+                <Terminal size={20} className="text-zinc-500" />
+              </div>
+              <h2 className="text-lg font-medium text-zinc-200 mb-2 font-sans tracking-tight">Have any questions?</h2>
+              <p className="text-zinc-400 text-sm mb-8 font-sans leading-relaxed">
+                Need support, want to collaborate, or just curious about the architecture? Feel free to reach out directly.
+              </p>
+              <a 
+                href="mailto:ahmeddev@email.com" 
+                className="px-6 py-3.5 bg-zinc-100 text-zinc-900 hover:bg-white transition-colors rounded-sm text-sm font-medium w-full flex items-center justify-center gap-2 shadow-lg"
+              >
+                <Send size={14} className="-ml-1" />
+                ahmeddev@email.com
+              </a>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Content constraints */}
       <main className="flex-1 min-h-0 w-full max-w-3xl mx-auto px-6 flex flex-col relative transition-all duration-700">
