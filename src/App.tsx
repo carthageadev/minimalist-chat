@@ -467,7 +467,7 @@ export default function App() {
               <motion.div 
                 initial={{ opacity: 0, y: 10 }} 
                 animate={{ opacity: 1, y: 0 }} 
-                exit={{ opacity: 0, filter: 'blur(8px)', scale: 0.95, transition: { duration: 0.15 } }} 
+                exit={{ opacity: 0, y: -10, filter: 'blur(4px)', transition: { duration: 0.1, ease: "easeOut" } }} 
                 className="mb-12 flex flex-col items-center pointer-events-none text-center"
               >
                 <div className="w-12 h-12 bg-zinc-900 border border-zinc-800 rounded-sm flex items-center justify-center shadow-2xl mb-6">
