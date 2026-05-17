@@ -227,7 +227,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-[100dvh] bg-[#09090b] text-zinc-100 font-sans selection:bg-zinc-800 flex flex-col relative overflow-hidden">
+    <div className="fixed inset-0 bg-[#09090b] text-zinc-100 font-sans selection:bg-zinc-800 flex flex-col overflow-hidden">
       {/* Top Bar - Strictly functional, no yapping */}
       <header className="absolute top-0 w-full p-6 flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10">
         <div className="relative pointer-events-auto">
