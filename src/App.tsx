@@ -465,6 +465,7 @@ export default function App() {
           <AnimatePresence>
             {messages.length === 0 && (
               <motion.div 
+                layout
                 initial={{ opacity: 0, y: 10 }} 
                 animate={{ opacity: 1, y: 0 }} 
                 exit={{ opacity: 0, y: -10, filter: 'blur(4px)', transition: { duration: 0.1, ease: "easeOut" } }} 
@@ -480,7 +481,7 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          <form onSubmit={handleSubmit} className="relative group w-full flex items-center pointer-events-auto">
+          <motion.form layout onSubmit={handleSubmit} className="relative group w-full flex items-center pointer-events-auto">
             <textarea
               id="chat-input"
               value={input}
@@ -504,7 +505,7 @@ export default function App() {
                 <Send size={18} strokeWidth={2} className="-ml-0.5 mt-0.5" />
               </button>
             </div>
-          </form>
+          </motion.form>
         </motion.div>
       </main>
     </div>
