@@ -248,7 +248,7 @@ export default function App() {
   return (
     <div className="fixed inset-0 bg-[#09090b] text-zinc-100 font-sans selection:bg-zinc-800 flex flex-col overflow-hidden">
       {/* Top Bar - Strictly functional, no yapping */}
-      <header className="absolute top-0 w-full p-6 flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10 pointer-events-auto">
+      <header className="absolute top-0 w-full p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10 pointer-events-auto">
         <div className="flex items-center gap-3">
           <button 
             onClick={() => setShowContact(true)}
@@ -322,7 +322,7 @@ export default function App() {
       <main className="flex-1 min-h-0 w-full max-w-3xl mx-auto px-6 flex flex-col relative transition-all duration-700">
         
         {messages.length > 0 && (
-          <div className="absolute inset-x-0 inset-y-0 overflow-y-auto hide-scrollbar scroll-smooth pt-28 pb-48 px-6 space-y-12">
+          <div className="absolute inset-x-0 inset-y-0 overflow-y-auto hide-scrollbar scroll-smooth pt-[calc(7rem+env(safe-area-inset-top))] pb-48 px-6 space-y-12">
             <AnimatePresence initial={false}>
               {messages.map((msg, idx) => {
                 if (msg.content.startsWith('[SEARCH RESULTS for ')) {
