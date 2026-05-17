@@ -405,7 +405,7 @@ export default function App() {
 
         <motion.div 
           layout 
-          className={`shrink-0 z-20 pb-8 pt-12 w-full pointer-events-none ${messages.length === 0 ? 'flex-1 flex flex-col justify-center' : 'absolute bottom-0 left-0 px-6 bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent'}`}
+          className={`shrink-0 z-20 pt-12 w-full pointer-events-none ${messages.length === 0 ? 'flex-1 flex flex-col justify-center pb-8' : 'absolute bottom-0 left-0 px-6 pb-[calc(1.5rem+env(safe-area-inset-bottom))] bg-gradient-to-t from-[#09090b] via-[#09090b] to-transparent'}`}
           transition={{ type: "spring", stiffness: 700, damping: 40 }}
         >
           <AnimatePresence>
