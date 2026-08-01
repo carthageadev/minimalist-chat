@@ -303,7 +303,7 @@ export default function App() {
                 <Terminal size={20} className="text-zinc-500" />
               </div>
               <h2 className="text-lg font-medium text-zinc-200 mb-2 font-sans tracking-tight">Have any questions?</h2>
-              <p className="text-zinc-400 text-sm mb-8 font-sans leading-relaxed">
+              <p className="text-zinc-100 text-sm mb-8 font-sans leading-relaxed">
                 Need support, want to collaborate, or just curious about the architecture? Feel free to reach out directly.
               </p>
               <a 
@@ -474,7 +474,7 @@ export default function App() {
                 <div className="w-12 h-12 bg-zinc-900 border border-zinc-800 rounded-sm flex items-center justify-center shadow-2xl mb-6">
                    <Terminal size={20} className="text-zinc-600" />
                 </div>
-                <h1 className="text-lg sm:text-xl font-light text-zinc-400 tracking-tight text-center max-w-lg">
+                <h1 className="text-lg sm:text-xl font-light text-zinc-100 tracking-tight text-center max-w-lg">
                   {greeting}
                 </h1>
               </motion.div>
