@@ -5,7 +5,7 @@ const client = new OpenAI({
   apiKey: process.env.UNTURF_API_KEY || "dummy-api-key",
 });
 
-const MODEL = "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic";
+const MODEL = "solidrust/Hermes-3-Llama-3.1-8B-AWQ";
 
 export const config = {
   runtime: 'edge', // Edge is great for streaming
