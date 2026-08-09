@@ -1,11 +1,11 @@
 import OpenAI from "openai";
 
 const client = new OpenAI({
-  baseURL: "https://hermes.ai.unturf.com/v1",
-  apiKey: process.env.UNTURF_API_KEY || "dummy-api-key",
+  baseURL: process.env.BASE_URL!,
+  apiKey: process.env.API_KEY!,
 });
 
-const MODEL = "solidrust/Hermes-3-Llama-3.1-8B-AWQ";
+const MODEL = process.env.MODEL!;
 
 export const config = {
   runtime: 'edge', // Edge is great for streaming

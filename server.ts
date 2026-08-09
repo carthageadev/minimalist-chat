@@ -6,11 +6,11 @@ import OpenAI from "openai";
 const PORT = 3000;
 
 const client = new OpenAI({
-  baseURL: "https://hermes.ai.unturf.com/v1",
-  apiKey: process.env.UNTURF_API_KEY || "dummy-api-key",
+  baseURL: process.env.BASE_URL!,
+  apiKey: process.env.API_KEY!,
 });
 
-const MODEL = "adamo1139/Hermes-3-Llama-3.1-8B-FP8-Dynamic";
+const MODEL = process.env.MODEL!;
 
 async function startServer() {
   const app = express();
