@@ -13,6 +13,26 @@ interface Message {
   content: string;
 }
 
+// Keep history bounded so requests stay within the model's context window.
+// Token-aware: keep as much recent history as fits, instead of a fixed count.
+const MAX_CONTEXT_TOKENS = 100000; // model supports ~128k; leave room for the response
+const CHARS_PER_TOKEN = 4; // rough estimate (~4 chars per token)
+
+const trimHistory = (msgs: Message[]): Message[] => {
+  let totalChars = 0;
+  const trimmed: Message[] = [];
+  for (let i = msgs.length - 1; i >= 0; i--) {
+    const msg = msgs[i];
+    const chars = msg.content.length;
+    if (totalChars + chars > MAX_CONTEXT_TOKENS * CHARS_PER_TOKEN && trimmed.length > 0) {
+      break;
+    }
+    totalChars += chars;
+    trimmed.unshift(msg);
+  }
+  return trimmed;
+};
+
 async function searchDDGVAPI(query: string) {
   const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
   try {
@@ -206,11 +226,11 @@ export default function App() {
           content: `[SEARCH RESULTS for "${query}"]\n\n${searchResults}\n\nNow, answer my original query using this information.` 
         };
         
-        const newMessagesToSend = [
+        const newMessagesToSend = trimHistory([
           ...currentMessages,
           { role: 'assistant', content: fullAssistantMessage } as Message,
           searchResultMessage,
-        ];
+        ]);
 
         setMessages((prev) => [
           ...prev, 
@@ -249,7 +269,7 @@ export default function App() {
     }
 
     const userMessage: Message = { role: 'user', content: input.trim() };
-    const newMessages = [...messages, userMessage];
+    const newMessages = trimHistory([...messages, userMessage]);
     setMessages(newMessages);
     setInput('');
     setIsLoading(true);
