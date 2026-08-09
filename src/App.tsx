@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Lock, Terminal, Maximize, Minimize, X } from 'lucide-react';
+import { Send, Lock, Terminal, Maximize, Minimize, X, Square } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -62,10 +62,10 @@ const GREETINGS = [
   "Ready to decipher your typos into actual knowledge.",
   "What simulation-breaking truth are we looking for?",
   "Ah, another human seeking forbidden internet lore.",
-  "No trackers. No ads. Just pure, unadulterated snark and answers.",
+  "No trackers. No ads. Just subpar answers.",
   "Spill your chaotic thoughts. I'll make sense of them.",
   "What are you trying to figure out before the grid goes down?",
-  "Speak, mortal. Your privacy is safe here.",
+  "Speak, honestly. Your privacy is safe here.",
   "Type your esoteric inquiry.",
   "I am devoid of cookies and full of answers.",
   "Unleash your worst spelling. I'll still find it."
@@ -80,6 +80,14 @@ export default function App() {
   const [showContact, setShowContact] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const stopGeneration = () => {
+    abortControllerRef.current?.abort();
+    abortControllerRef.current = null;
+    setIsLoading(false);
+    setIsStreaming(false);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -108,6 +116,11 @@ export default function App() {
   };
 
   const processChat = async (currentMessages: Message[]) => {
+    // Interrupt any in-flight stream before starting a new one
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setIsLoading(true);
     setIsStreaming(false);
     
@@ -116,6 +129,7 @@ export default function App() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: currentMessages }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -185,6 +199,7 @@ export default function App() {
         setMessages((prev) => [...prev, { role: 'system', content: `[SEARCH] Executing search for: "${query}"...` }]);
         
         const searchResults = await searchDDGVAPI(query);
+        if (controller.signal.aborted) return;
         
         const searchResultMessage: Message = {
           role: 'user', 
@@ -207,18 +222,31 @@ export default function App() {
         return;
       }
 
-    } catch (error) {
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        // Interrupted by user — keep partial response, no error message
+        return;
+      }
       console.error('Failed to send message:', error);
       setMessages((prev) => [...prev, { role: 'assistant', content: "An error occurred in the transmission channel." }]);
     } finally {
-      setIsLoading(false);
-      setIsStreaming(false);
+      // Only clear state if this is still the active request
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+        setIsLoading(false);
+        setIsStreaming(false);
+      }
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading || isStreaming) return;
+    if (!input.trim()) return;
+
+    // If a response is in flight, interrupt it before sending the new message
+    if (isLoading || isStreaming) {
+      abortControllerRef.current?.abort();
+    }
 
     const userMessage: Message = { role: 'user', content: input.trim() };
     const newMessages = [...messages, userMessage];
@@ -239,9 +267,7 @@ export default function App() {
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      if (!isLoading && !isStreaming) {
-        handleSubmit(e as unknown as React.FormEvent);
-      }
+      handleSubmit(e as unknown as React.FormEvent);
     }
   };
 
@@ -496,14 +522,25 @@ export default function App() {
               rows={1}
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center pointer-events-none">
-              <button
-                type="submit"
-                disabled={!input.trim() || isLoading || isStreaming}
-                className="p-2 text-zinc-500 pointer-events-auto hover:text-zinc-200 disabled:opacity-30 disabled:hover:text-zinc-500 transition-colors bg-transparent rounded-sm"
-                aria-label="Send message"
-              >
-                <Send size={18} strokeWidth={2} className="-ml-0.5 mt-0.5" />
-              </button>
+              {isLoading || isStreaming ? (
+                <button
+                  type="button"
+                  onClick={stopGeneration}
+                  className="p-2 text-zinc-500 pointer-events-auto hover:text-zinc-200 transition-colors bg-transparent rounded-sm"
+                  aria-label="Stop generating"
+                >
+                  <Square size={14} strokeWidth={2} className="fill-current" />
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={!input.trim()}
+                  className="p-2 text-zinc-500 pointer-events-auto hover:text-zinc-200 disabled:opacity-30 disabled:hover:text-zinc-500 transition-colors bg-transparent rounded-sm"
+                  aria-label="Send message"
+                >
+                  <Send size={18} strokeWidth={2} className="-ml-0.5 mt-0.5" />
+                </button>
+              )}
             </div>
           </motion.form>
         </motion.div>
