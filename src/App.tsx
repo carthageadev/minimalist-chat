@@ -12,6 +12,7 @@ const MODELS = [
   { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano' },
   { id: 'poolside/laguna-xs-2.1', label: 'Laguna XS 2.1' },
   { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B' },
+  { id: 'minimaxai/minimax-m3', label: 'MiniMax M3' },
 ];
 
 interface Message {

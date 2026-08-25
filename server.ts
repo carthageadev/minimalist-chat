@@ -62,6 +62,13 @@ Character control rules (strict):
         requestBody.chat_template_kwargs = { enable_thinking: thinking };
       }
 
+      if (selectedModel.startsWith("minimaxai/")) {
+        requestBody.chat_template_kwargs = { thinking_mode: "disabled" };
+        requestBody.temperature = 1;
+        requestBody.top_p = 0.95;
+        requestBody.max_tokens = 8192;
+      }
+
       const stream = await (client.chat.completions.create(requestBody as any) as Promise<any>);
 
       for await (const chunk of stream) {
