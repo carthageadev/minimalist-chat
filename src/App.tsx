@@ -23,7 +23,7 @@ const decrypt = (blob: string | null) => {
 };
 const store = (key: string, value: string) => localStorage.setItem(key, encrypt(value));
 
-const SCRAMBLE_CHARS = '!<>-_\\/[]{}—=+*^?#________ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+const SCRAMBLE_CHARS = 'abcdefghijklmnopqrstuvwxyz';
 
 const scrambleDissolve = (
   from: string,
@@ -285,64 +285,106 @@ export default function App() {
     abortRef.current = controller;
     const fromText = kind === 'user' ? userPersona : charPersona;
     const current = fromText.trim();
-    // quick dissolve: clear the box so the new generation feels fresh
-    // (full scramble effect temporarily disabled to fix regression — will return)
-    if (fromText) setText('');
-    try {
-      const resp = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          model,
-          thinking: false,
-          isPersona: true,
-          messages: [
-            { role: 'system', content: PERSONA_SYSTEM_PROMPTS[kind] },
-            {
-              role: 'user',
-              content: current
-                ? `Here is my rough idea. Expand and elevate it into the full description — keep my core idea but make it richer and more original:\n\n${current}`
-                : `Create a completely fresh, unique concept entirely of your own choosing. Be random, surprising and original — avoid clichés and anything predictable.`,
-            },
-          ],
-        }),
-      });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const reader = resp.body?.getReader();
-      if (!reader) throw new Error('No reader');
-      const decoder = new TextDecoder();
-      let buffer = '';
-      let out = '';
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        if (controller.signal.aborted) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6).trim();
-            if (dataStr === '[DONE]') continue;
-            try {
-              const data = JSON.parse(dataStr);
-              if (data.error) throw new Error(data.error);
-              if (data.content) out += data.content;
-            } catch {}
+
+    // Buffer for the LLM response while scramble plays
+    let pendingOut = '';
+    let fetchDone = false;
+    let fetchError: any = null;
+
+    const dissolveDone = { done: false };
+    const dissolvePromise = fromText
+      ? scrambleDissolve(fromText, setText, 520, controller.signal, () => {}).then((r) => {
+          dissolveDone.done = r === 'done';
+        })
+      : (setText(''), Promise.resolve('done' as const).then(() => { dissolveDone.done = true; }));
+
+    const fetchPromise = (async () => {
+      try {
+        const resp = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model,
+            thinking: false,
+            isPersona: true,
+            messages: [
+              { role: 'system', content: PERSONA_SYSTEM_PROMPTS[kind] },
+              {
+                role: 'user',
+                content: current
+                  ? `Here is my rough idea. Expand and elevate it into the full description — keep my core idea but make it richer and more original:\n\n${current}`
+                  : `Create a completely fresh, unique concept entirely of your own choosing. Be random, surprising and original — avoid clichés and anything predictable.`,
+              },
+            ],
+          }),
+        });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const reader = resp.body?.getReader();
+        if (!reader) throw new Error('No reader');
+        const decoder = new TextDecoder();
+        let buffer = '';
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (controller.signal.aborted) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const dataStr = line.slice(6).trim();
+              if (dataStr === '[DONE]') continue;
+              try {
+                const data = JSON.parse(dataStr);
+                if (data.error) throw new Error(data.error);
+                if (data.content) pendingOut += data.content;
+              } catch {}
+            }
           }
         }
-        if (out) setText(out.trim());
+      } catch (e: any) {
+        if (e?.name !== 'AbortError') fetchError = e;
+      } finally {
+        fetchDone = true;
       }
-      if (!out.trim() && !controller.signal.aborted) setText(fromText);
-    } catch (e: any) {
-      if (e?.name === 'AbortError') return;
-      console.error('Generate failed:', e);
-      setText(fromText);
-    } finally {
+    })();
+
+    // Wait for dissolve to finish — response keeps buffering in background
+    await dissolvePromise;
+    if (controller.signal.aborted) {
+      await fetchPromise.catch(() => {});
       if (abortRef.current === controller) abortRef.current = null;
       setGen(false);
+      if (!dissolveDone.done) setText(fromText);
+      return;
     }
+
+    // Now emit the buffered response at a stable, readable rate
+    let outIdx = 0;
+    while (!controller.signal.aborted) {
+      if (outIdx < pendingOut.length) {
+        const step = Math.min(3, pendingOut.length - outIdx);
+        outIdx += step;
+        setText(pendingOut.slice(0, outIdx).trim());
+      } else if (fetchDone) {
+        break;
+      }
+      await new Promise((r) => setTimeout(r, 22));
+    }
+
+    if (fetchError) {
+      console.error('Generate failed:', fetchError);
+      setText(fromText);
+    } else if (!pendingOut.trim() && !controller.signal.aborted) {
+      setText(fromText);
+    } else if (!controller.signal.aborted) {
+      setText(pendingOut.trim());
+    }
+
+    await fetchPromise.catch(() => {});
+    if (abortRef.current === controller) abortRef.current = null;
+    setGen(false);
   };
   const rpClicksRef = useRef<{ count: number; first: number }>({ count: 0, first: 0 });
 
