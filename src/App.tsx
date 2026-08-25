@@ -559,46 +559,46 @@ export default function App() {
                 <X size={16} />
               </button>
               <h2 className="text-base font-medium text-zinc-200 mb-6 font-sans tracking-tight">Roleplay Setup</h2>
-              <div className="flex items-center justify-between mb-2">
-                <label className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
-                  {'{{user}}'} — your persona
-                </label>
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
+                {'{{user}}'} — your persona
+              </label>
+              <textarea
+                value={userPersona}
+                onChange={(e) => setUserPersona(e.target.value)}
+                placeholder="Who is the user in this story? Name, appearance, personality..."
+                className={`persona-box w-full h-24 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${generating === 'user' ? 'persona-glow' : ''}`}
+              />
+              <div className="flex justify-end mt-2 mb-5">
                 <button
                   type="button"
                   onClick={() => generatePersona('user')}
                   disabled={!!generating}
-                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-200 disabled:opacity-40 disabled:hover:text-zinc-500 transition-colors focus:outline-none"
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-400 border border-zinc-700/80 hover:border-zinc-500 hover:text-zinc-200 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-700/80 disabled:hover:text-zinc-400 transition-colors focus:outline-none"
                 >
                   <Sparkles size={11} className={generating === 'user' ? 'animate-pulse' : ''} />
                   {generating === 'user' ? 'Dreaming...' : 'Generate for me'}
                 </button>
               </div>
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
+                {'{{char}}'} — character description
+              </label>
               <textarea
-                value={userPersona}
-                onChange={(e) => setUserPersona(e.target.value)}
-                placeholder="Who is the user in this story? Name, appearance, personality..."
-                className="w-full h-24 mb-5 bg-zinc-900/60 border border-zinc-800/80 focus:border-zinc-600 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed"
+                value={charPersona}
+                onChange={(e) => setCharPersona(e.target.value)}
+                placeholder="Define your character — like a character card. Name, personality, appearance, how {{char}} speaks and acts..."
+                className={`persona-box w-full h-32 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${generating === 'char' ? 'persona-glow' : ''}`}
               />
-              <div className="flex items-center justify-between mb-2">
-                <label className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
-                  {'{{char}}'} — character description
-                </label>
+              <div className="flex justify-end mt-2 mb-6">
                 <button
                   type="button"
                   onClick={() => generatePersona('char')}
                   disabled={!!generating}
-                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-200 disabled:opacity-40 disabled:hover:text-zinc-500 transition-colors focus:outline-none"
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-400 border border-zinc-700/80 hover:border-zinc-500 hover:text-zinc-200 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-700/80 disabled:hover:text-zinc-400 transition-colors focus:outline-none"
                 >
                   <Sparkles size={11} className={generating === 'char' ? 'animate-pulse' : ''} />
                   {generating === 'char' ? 'Dreaming...' : 'Generate for me'}
                 </button>
               </div>
-              <textarea
-                value={charPersona}
-                onChange={(e) => setCharPersona(e.target.value)}
-                placeholder="Define your character — like a character card. Name, personality, appearance, how {{char}} speaks and acts..."
-                className="w-full h-32 mb-6 bg-zinc-900/60 border border-zinc-800/80 focus:border-zinc-600 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed"
-              />
               <button
                 onClick={() => {
                   localStorage.setItem('rp-user-persona', userPersona);
