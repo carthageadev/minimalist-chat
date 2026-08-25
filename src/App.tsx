@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Lock, Terminal, Maximize, Minimize, X, Square, Check, Brain } from 'lucide-react';
+import { Send, Lock, Terminal, Maximize, Minimize, X, Square, Check, Brain, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -7,6 +7,19 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { motion, AnimatePresence } from 'motion/react';
 
 type Role = 'user' | 'assistant' | 'system';
+
+const PERSONA_SEEDS = [
+  'a disgraced imperial cartographer', 'a night-shift hospice nurse who hears the dead humming',
+  'a duelist banned from every court in the empire', 'a deep-sea salvager with survivor\'s guilt',
+  'a wandering plague doctor with modern ideas', 'a desert caravan guide smuggling memories',
+  'a fallen choir prodigy turned mercenary', 'a clockmaker obsessed with a machine that predicts deaths',
+  'a war photographer who stopped believing in truth', 'a lighthouse keeper who receives letters from the sea',
+];
+
+const PERSONA_SYSTEM_PROMPTS: Record<'user' | 'char', string> = {
+  user: `You are a master character writer for immersive, realistic text roleplays. Write a vivid persona description for "{{user}}" — the user's character. Include: full name, rough age, appearance, personality traits, a hint of backstory, and what makes them compelling. Third-person prose, under 150 words, no markdown, no lists. Output ONLY the description itself.`,
+  char: `You are a master character-card writer for immersive AI roleplays (SillyTavern-style cards). Write a rich definition for "{{char}}" — the AI's roleplay character. Include: full name, appearance, personality, backstory, distinct speech style and quirks, and how {{char}} tends to relate to {{user}}. Third-person prose, under 220 words, no markdown, no lists. Output ONLY the description itself.`,
+};
 
 const MODELS = [
   { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano' },
@@ -114,6 +127,58 @@ export default function App() {
   const [showSetup, setShowSetup] = useState(false);
   const [userPersona, setUserPersona] = useState<string>(() => localStorage.getItem('rp-user-persona') || '');
   const [charPersona, setCharPersona] = useState<string>(() => localStorage.getItem('rp-char-persona') || '');
+  const [generating, setGenerating] = useState<'user' | 'char' | null>(null);
+
+  const generatePersona = async (kind: 'user' | 'char') => {
+    if (generating) return;
+    setGenerating(kind);
+    const current = (kind === 'user' ? userPersona : charPersona).trim();
+    const seed = PERSONA_SEEDS[Math.floor(Math.random() * PERSONA_SEEDS.length)];
+    try {
+      const resp = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: 'system', content: PERSONA_SYSTEM_PROMPTS[kind] },
+            {
+              role: 'user',
+              content: current
+                ? `Here is my rough idea. Expand and elevate it into the full description — keep my core idea but make it richer and more original:\n\n${current}`
+                : `Create a completely fresh, unique concept from scratch. Random inspiration seed: ${seed}. Surprise me.`,
+            },
+          ],
+        }),
+      });
+      const reader = resp.body?.getReader();
+      if (!reader) return;
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let out = '';
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const dataStr = line.slice(6).trim();
+            if (dataStr === '[DONE]') continue;
+            try {
+              const data = JSON.parse(dataStr);
+              if (data.content) out += data.content;
+            } catch (e) {}
+          }
+        }
+        if (kind === 'user') setUserPersona(out.trim());
+        else setCharPersona(out.trim());
+      }
+    } finally {
+      setGenerating(null);
+    }
+  };
   const rpClicksRef = useRef<{ count: number; first: number }>({ count: 0, first: 0 });
 
   const selectModel = (id: string) => {
@@ -503,18 +568,40 @@ export default function App() {
                 <X size={16} />
               </button>
               <h2 className="text-base font-medium text-zinc-200 mb-6 font-sans tracking-tight">Roleplay Setup</h2>
-              <label className="block font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
-                {'{{user}}'} — your persona
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+                  {'{{user}}'} — your persona
+                </label>
+                <button
+                  type="button"
+                  onClick={() => generatePersona('user')}
+                  disabled={!!generating}
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-200 disabled:opacity-40 disabled:hover:text-zinc-500 transition-colors focus:outline-none"
+                >
+                  <Sparkles size={11} className={generating === 'user' ? 'animate-pulse' : ''} />
+                  {generating === 'user' ? 'Dreaming...' : 'Generate for me'}
+                </button>
+              </div>
               <textarea
                 value={userPersona}
                 onChange={(e) => setUserPersona(e.target.value)}
                 placeholder="Who is the user in this story? Name, appearance, personality..."
                 className="w-full h-24 mb-5 bg-zinc-900/60 border border-zinc-800/80 focus:border-zinc-600 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed"
               />
-              <label className="block font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
-                {'{{char}}'} — character description
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+                  {'{{char}}'} — character description
+                </label>
+                <button
+                  type="button"
+                  onClick={() => generatePersona('char')}
+                  disabled={!!generating}
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-500 hover:text-zinc-200 disabled:opacity-40 disabled:hover:text-zinc-500 transition-colors focus:outline-none"
+                >
+                  <Sparkles size={11} className={generating === 'char' ? 'animate-pulse' : ''} />
+                  {generating === 'char' ? 'Dreaming...' : 'Generate for me'}
+                </button>
+              </div>
               <textarea
                 value={charPersona}
                 onChange={(e) => setCharPersona(e.target.value)}
