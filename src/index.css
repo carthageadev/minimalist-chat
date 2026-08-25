@@ -144,7 +144,7 @@ textarea::-webkit-scrollbar {
         animation: vt-fade-out 0.55s ease both;
     }
     ::view-transition-new(root) {
-        animation: vt-fade-in 0.22s ease 0.06s both;
+        animation: vt-fade-in 0.1s ease 0.04s both;
     }
 }
 @keyframes vt-fade-out {
