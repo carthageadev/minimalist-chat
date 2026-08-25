@@ -643,7 +643,7 @@ export default function App() {
                   type="button"
                   onClick={() => generatePersona('user')}
                   disabled={!!generating}
-                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-400 border border-zinc-700/70 hover:border-zinc-500 hover:text-zinc-200 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-700/70 disabled:hover:text-zinc-400 transition-colors focus:outline-none"
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 disabled:opacity-40 transition-colors focus:outline-none"
                 >
                   <Sparkles size={11} className={generating === 'user' ? 'animate-pulse' : ''} />
                   {generating === 'user' ? 'Dreaming...' : 'Generate for me'}
@@ -663,7 +663,7 @@ export default function App() {
                   type="button"
                   onClick={() => generatePersona('char')}
                   disabled={!!generating}
-                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-400 border border-zinc-700/70 hover:border-zinc-500 hover:text-zinc-200 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-700/70 disabled:hover:text-zinc-400 transition-colors focus:outline-none"
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 disabled:opacity-40 transition-colors focus:outline-none"
                 >
                   <Sparkles size={11} className={generating === 'char' ? 'animate-pulse' : ''} />
                   {generating === 'char' ? 'Dreaming...' : 'Generate for me'}
