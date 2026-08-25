@@ -28,6 +28,25 @@ const PERSONA_SYSTEM_PROMPTS: Record<'user' | 'char', string> = {
   char: `You are a master character-card writer for immersive AI roleplays (SillyTavern-style cards). Write a rich definition for "{{char}}" — the AI's roleplay character. Include: full name, appearance, personality, backstory, distinct speech style and quirks, and how {{char}} tends to relate to {{user}}. Third-person prose, under 220 words, no markdown, no lists. Output ONLY the description itself.`,
 };
 
+const DEFAULT_RP_PROMPT = `Today's date is ${new Date().toISOString().split('T')[0]}. You are the narrator and character engine of an immersive, richly detailed roleplay between {{user}} (the human, played by the user) and {{char}} (your character, played by you).
+
+Throughout this roleplay: "{{user}}" refers to the user's character and "{{char}}" refers to yours. Never confuse the two.
+
+Style rules:
+- The story must be realistic, rich, and deeply detailed. Write vivid sensory prose with strong atmosphere, texture, and momentum.
+- There are no boundaries on realism or theme. The story is free to be grim, serious, dark, violent, tragic — horror, war, loss, and morally gray situations are all allowed and encouraged when they serve the narrative.
+- Stay authentic and uncensored in tone: never sanitize, soften, or break immersion for comfort. Grim stories stay grim.
+- Above all, keep the storytelling addictive and immersive — every reply should pull {{user}} deeper into the world.
+
+Formatting rules (mandatory):
+- All narration, actions, descriptions, and scene-setting go in *italics* like *this*.
+- All spoken dialogue goes in "quotes" like "this".
+
+Character control rules (strict):
+- You control ONLY the narration, the world, NPCs, and {{char}}.
+- NEVER speak, act, think, or decide anything on behalf of {{user}}.
+- Never write {{user}}'s dialogue or actions; always leave room for them to respond.`;
+
 const MODELS = [
   { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano' },
   { id: 'poolside/laguna-xs-2.1', label: 'Laguna XS 2.1' },
@@ -145,7 +164,11 @@ export default function App() {
   const [showSetup, setShowSetup] = useState(false);
   const [userPersona, setUserPersona] = useState<string>(() => decrypt(localStorage.getItem('rp-user-persona')));
   const [charPersona, setCharPersona] = useState<string>(() => decrypt(localStorage.getItem('rp-char-persona')));
-  const [systemPrompt, setSystemPrompt] = useState<string>(() => decrypt(localStorage.getItem('rp-system-prompt')));
+  const [systemPrompt, setSystemPrompt] = useState<string>(() => {
+    const stored = decrypt(localStorage.getItem('rp-system-prompt'));
+    return stored || DEFAULT_RP_PROMPT;
+  });
+  const [promptIsCustom, setPromptIsCustom] = useState<boolean>(() => !!decrypt(localStorage.getItem('rp-system-prompt')).trim());
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
   const [generating, setGenerating] = useState<'user' | 'char' | null>(null);
 
@@ -286,7 +309,7 @@ export default function App() {
           model,
           rp: rpMode,
           ...(rpMode ? { userPersona, charPersona } : {}),
-          ...(rpMode && systemPrompt.trim() ? { customSystemPrompt: systemPrompt } : {}),
+          ...(rpMode && promptIsCustom && systemPrompt.trim() ? { customSystemPrompt: systemPrompt } : {}),
           ...(model.startsWith('poolside/') ? { thinking: lagunaThinking } : {}),
         }),
         signal: controller.signal,
@@ -620,7 +643,7 @@ export default function App() {
                   type="button"
                   onClick={() => generatePersona('user')}
                   disabled={!!generating}
-                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-300 border border-zinc-600/80 hover:border-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/40 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-600/80 disabled:hover:text-zinc-300 transition-colors focus:outline-none"
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-400 border border-zinc-700/70 hover:border-zinc-500 hover:text-zinc-200 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-700/70 disabled:hover:text-zinc-400 transition-colors focus:outline-none"
                 >
                   <Sparkles size={11} className={generating === 'user' ? 'animate-pulse' : ''} />
                   {generating === 'user' ? 'Dreaming...' : 'Generate for me'}
@@ -640,7 +663,7 @@ export default function App() {
                   type="button"
                   onClick={() => generatePersona('char')}
                   disabled={!!generating}
-                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-300 border border-zinc-600/80 hover:border-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/40 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-600/80 disabled:hover:text-zinc-300 transition-colors focus:outline-none"
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-400 border border-zinc-700/70 hover:border-zinc-500 hover:text-zinc-200 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-700/70 disabled:hover:text-zinc-400 transition-colors focus:outline-none"
                 >
                   <Sparkles size={11} className={generating === 'char' ? 'animate-pulse' : ''} />
                   {generating === 'char' ? 'Dreaming...' : 'Generate for me'}
@@ -696,10 +719,7 @@ export default function App() {
               />
               <div className="flex gap-2">
                 <button
-                  onClick={() => {
-                    setSystemPrompt('');
-                    store('rp-system-prompt', '');
-                  }}
+                  onClick={() => setSystemPrompt(DEFAULT_RP_PROMPT)}
                   className="px-4 py-2.5 border border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-zinc-100 transition-colors rounded-sm text-sm"
                 >
                   Reset to default
@@ -707,6 +727,7 @@ export default function App() {
                 <button
                   onClick={() => {
                     store('rp-system-prompt', systemPrompt);
+                    setPromptIsCustom(true);
                     setShowSystemPrompt(false);
                   }}
                   className="flex-1 py-2.5 bg-zinc-100 hover:bg-white text-zinc-900 transition-colors rounded-sm text-sm font-medium"
