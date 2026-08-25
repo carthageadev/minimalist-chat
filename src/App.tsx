@@ -285,21 +285,9 @@ export default function App() {
     abortRef.current = controller;
     const fromText = kind === 'user' ? userPersona : charPersona;
     const current = fromText.trim();
-
-    // Scramble dissolve of the old text
-    const dissolveCtrl = new AbortController();
-    let lastScrambled = fromText;
-    let dissolveDone = false;
-    if (fromText) {
-      scrambleDissolve(fromText, setText, 520, dissolveCtrl.signal, (v) => { lastScrambled = v; }).then((r) => {
-        if (r === 'done') dissolveDone = true;
-      });
-    } else {
-      setText('');
-    }
-    // Link dissolve abort to main abort
-    controller.signal.addEventListener('abort', () => dissolveCtrl.abort());
-
+    // quick dissolve: clear the box so the new generation feels fresh
+    // (full scramble effect temporarily disabled to fix regression — will return)
+    if (fromText) setText('');
     try {
       const resp = await fetch('/api/chat', {
         method: 'POST',
@@ -326,10 +314,6 @@ export default function App() {
       const decoder = new TextDecoder();
       let buffer = '';
       let out = '';
-      let firstChunk = true;
-      let morphed = false;
-      const morphCtrl = new AbortController();
-      controller.signal.addEventListener('abort', () => morphCtrl.abort());
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -345,32 +329,17 @@ export default function App() {
               const data = JSON.parse(dataStr);
               if (data.error) throw new Error(data.error);
               if (data.content) out += data.content;
-            } catch (e) {}
+            } catch {}
           }
         }
-        if (!out) continue;
-        if (firstChunk) {
-          firstChunk = false;
-          dissolveCtrl.abort();
-          // morph whatever is on screen (scrambled residue or empty) into the first chunk
-          await scrambleMorph(lastScrambled, out.trim(), setText, 420, morphCtrl.signal);
-          if (morphCtrl.signal.aborted || controller.signal.aborted) break;
-          morphed = true;
-        } else {
-          setText(out.trim());
-        }
+        if (out) setText(out.trim());
       }
+      if (!out.trim() && !controller.signal.aborted) setText(fromText);
     } catch (e: any) {
-      if (e?.name === 'AbortError') {
-        // cancelled mid-scramble — revert to original so box isn't left half-scrambled
-        if (!dissolveDone) setText(fromText);
-        return;
-      }
+      if (e?.name === 'AbortError') return;
       console.error('Generate failed:', e);
-      // on error, restore original text if we dissolved away
-      if (fromText && !dissolveDone) setText(fromText);
+      setText(fromText);
     } finally {
-      dissolveCtrl.abort();
       if (abortRef.current === controller) abortRef.current = null;
       setGen(false);
     }
