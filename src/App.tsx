@@ -111,12 +111,14 @@ export default function App() {
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [lagunaThinking, setLagunaThinking] = useState<boolean>(() => localStorage.getItem('laguna-thinking') !== '0');
   const [rpMode, setRpMode] = useState<boolean>(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [userPersona, setUserPersona] = useState<string>(() => localStorage.getItem('rp-user-persona') || '');
+  const [charPersona, setCharPersona] = useState<string>(() => localStorage.getItem('rp-char-persona') || '');
   const rpClicksRef = useRef<{ count: number; first: number }>({ count: 0, first: 0 });
 
   const selectModel = (id: string) => {
     setModel(id);
     localStorage.setItem('selected-model', id);
-    setShowModelPicker(false);
   };
 
   const handleLagunaClick = () => {
@@ -130,7 +132,7 @@ export default function App() {
     } else {
       state.count += 1;
     }
-    if (state.count >= 5) {
+    if (state.count >= 10) {
       setRpMode((v) => !v);
       state.count = 0;
       setShowModelPicker(false);
@@ -199,6 +201,7 @@ export default function App() {
           messages: currentMessages,
           model,
           rp: rpMode,
+          ...(rpMode ? { userPersona, charPersona } : {}),
           ...(model.startsWith('poolside/') ? { thinking: lagunaThinking } : {}),
         }),
         signal: controller.signal,
@@ -356,12 +359,12 @@ export default function App() {
       {/* Top Bar - Strictly functional, no yapping */}
       <header className="absolute top-0 w-full p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10 pointer-events-auto">
         <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setShowContact(true)}
+          <button
+            onClick={() => (rpMode ? setShowSetup(true) : setShowContact(true))}
             className="flex items-center gap-2 hover:text-zinc-300 transition-colors focus:outline-none"
           >
             <Lock size={12} className="text-zinc-600" />
-            <span>E2E Channel</span>
+            <span>{rpMode ? 'Setup' : 'E2E Channel'}</span>
           </button>
           
           <button
@@ -471,6 +474,63 @@ export default function App() {
                 <Send size={14} className="-ml-1" />
                 ahmeddev@email.com
               </a>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* RP Setup Modal */}
+      <AnimatePresence>
+        {showSetup && rpMode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 pointer-events-auto"
+            onClick={() => setShowSetup(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md bg-[#0c0c0e] border border-zinc-800 rounded-sm shadow-2xl p-8 normal-case tracking-normal"
+            >
+              <button
+                onClick={() => setShowSetup(false)}
+                className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none"
+              >
+                <X size={16} />
+              </button>
+              <h2 className="text-base font-medium text-zinc-200 mb-6 font-sans tracking-tight">Roleplay Setup</h2>
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
+                {'{{user}}'} — your persona
+              </label>
+              <textarea
+                value={userPersona}
+                onChange={(e) => setUserPersona(e.target.value)}
+                placeholder="Who is the user in this story? Name, appearance, personality..."
+                className="w-full h-24 mb-5 bg-zinc-900/60 border border-zinc-800/80 focus:border-zinc-600 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed"
+              />
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
+                {'{{char}}'} — character description
+              </label>
+              <textarea
+                value={charPersona}
+                onChange={(e) => setCharPersona(e.target.value)}
+                placeholder="Define your character — like a character card. Name, personality, appearance, how {{char}} speaks and acts..."
+                className="w-full h-32 mb-6 bg-zinc-900/60 border border-zinc-800/80 focus:border-zinc-600 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed"
+              />
+              <button
+                onClick={() => {
+                  localStorage.setItem('rp-user-persona', userPersona);
+                  localStorage.setItem('rp-char-persona', charPersona);
+                  setShowSetup(false);
+                }}
+                className="w-full py-2.5 bg-zinc-100 hover:bg-white text-zinc-900 transition-colors rounded-sm text-sm font-medium"
+              >
+                Save
+              </button>
             </motion.div>
           </motion.div>
         )}

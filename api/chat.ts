@@ -17,7 +17,7 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const { messages, model, thinking, rp } = await req.json();
+    const { messages, model, thinking, rp, userPersona, charPersona } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "Messages array is required." }), {
         status: 400,
@@ -40,9 +40,17 @@ Character control rules (strict):
 - NEVER speak, act, think, or decide anything on behalf of the user or the user's character.
 - Never write the user's dialogue or actions; always leave room for them to respond.`;
 
+    let personaBlock = "";
+    if (typeof userPersona === "string" && userPersona.trim()) {
+      personaBlock += `\n\n{{user}} (the user's character):\n${userPersona.trim()}`;
+    }
+    if (typeof charPersona === "string" && charPersona.trim()) {
+      personaBlock += `\n\n{{char}} (your character — you speak and act ONLY as {{char}}):\n${charPersona.trim()}`;
+    }
+
     const systemMessage = {
       role: "system",
-      content: rp ? rpSystemPrompt : baseSystemPrompt,
+      content: rp ? rpSystemPrompt + personaBlock : baseSystemPrompt,
     };
 
     const formattedMessages = [systemMessage, ...messages];
