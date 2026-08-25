@@ -259,6 +259,19 @@ export default function App() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    // Guarantee the fade on keyboard reloads — Chrome sometimes truncates
+    // cross-document view transitions on rapid consecutive reloads.
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r')) {
+        e.preventDefault();
+        document.startViewTransition(() => location.reload());
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  useEffect(() => {
     // Only for browsers without View Transitions — otherwise the VT snapshot
     // gets captured mid-fade and the reload never reaches full black.
     if ('startViewTransition' in document) return;
