@@ -666,17 +666,27 @@ export default function App() {
                   <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? 'text-zinc-400' : msg.role === 'system' ? 'text-blue-400/80' : msg.error ? 'text-red-400/80' : 'text-zinc-100'} markdown-body`}>
                     {msg.role === 'assistant' ? (
                       <>
-                        {msg.reasoning && (
-                          <details className="mb-4 group">
-                            <summary className="cursor-pointer select-none inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-zinc-600 hover:text-zinc-400 transition-colors">
-                              <span>[✓] Reasoning</span>
-                              <span className="opacity-40 group-open:rotate-180 transition-transform">▼</span>
-                            </summary>
-                            <div className="mt-2 pl-3 border-l border-zinc-800/50 font-mono text-[11px] leading-relaxed text-zinc-500/80 whitespace-pre-wrap">
-                              {msg.reasoning}
-                            </div>
-                          </details>
-                        )}
+                        {msg.reasoning && (() => {
+                          const reasoningPending = isStreaming && idx === messages.length - 1;
+                          return (
+                            <details className="mb-4 group" open={reasoningPending || undefined}>
+                              <summary className="cursor-pointer select-none inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-zinc-600 hover:text-zinc-400 transition-colors">
+                                {reasoningPending ? (
+                                  <>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-fuchsia-400/80 animate-pulse" />
+                                    <span>Reasoning</span>
+                                  </>
+                                ) : (
+                                  <span>[✓] Reasoning</span>
+                                )}
+                                <span className="opacity-40 group-open:rotate-180 transition-transform">▼</span>
+                              </summary>
+                              <div className="mt-2 pl-3 border-l border-zinc-800/50 font-mono text-[11px] leading-relaxed text-zinc-500/80 whitespace-pre-wrap">
+                                {msg.reasoning}
+                              </div>
+                            </details>
+                          );
+                        })()}
                         <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
