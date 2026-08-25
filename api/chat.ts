@@ -5,8 +5,6 @@ const client = new OpenAI({
   apiKey: process.env.API_KEY!,
 });
 
-const MODEL = process.env.MODEL!;
-
 export const config = {
   runtime: 'edge', // Edge is great for streaming
 };
@@ -24,8 +22,14 @@ export default async function handler(req: Request) {
         headers: { 'Content-Type': 'application/json' }
       });
     }
+    if (typeof model !== 'string' || !model.trim()) {
+      return new Response(JSON.stringify({ error: "Model is required." }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
 
-    const selectedModel = typeof model === 'string' && model.trim() ? model : MODEL;
+    const selectedModel = model;
 
     const baseSystemPrompt = `Today's date is ${new Date().toISOString().split('T')[0]}. Be bold, forward-thinking, and highly agentic. Aggressively auto-correct and decipher any user typos or misspellings (e.g., understand "doanld rump" as "Donald Trump" without mentioning the typo). Assume the user's underlying intent based on context and immediately provide useful answers. Do NOT ask excessive follow-up questions—take the initiative, make reasonable assumptions, and get things done. You have access to a web search tool. To use it, output EXACTLY the following format: [SEARCH: your search query here] and stop right away. The user will automatically reply with the search results, and then you can formulate your final answer based on the results.`;
 

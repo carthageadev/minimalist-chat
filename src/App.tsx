@@ -24,6 +24,7 @@ interface Message {
   role: Role;
   content: string;
   reasoning?: string;
+  error?: boolean;
 }
 
 // Keep history bounded so requests stay within the model's context window.
@@ -274,7 +275,12 @@ export default function App() {
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        let errMsg = `HTTP ${response.status}`;
+        try {
+          const j = await response.json();
+          if (j?.error) errMsg = `${response.status} — ${j.error}`;
+        } catch (e) {}
+        throw new Error(errMsg);
       }
 
       const reader = response.body?.getReader();
@@ -303,6 +309,7 @@ export default function App() {
         
         let chunkContent = '';
         let chunkReasoning = '';
+        let streamError: string | null = null;
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {
@@ -310,7 +317,7 @@ export default function App() {
             if (dataStr === '[DONE]') continue;
             try {
               const data = JSON.parse(dataStr);
-              if (data.error) continue;
+              if (data.error) { streamError = data.error; break; }
               if (data.reasoning) {
                 chunkReasoning += data.reasoning;
               }
@@ -323,6 +330,8 @@ export default function App() {
             }
           }
         }
+
+        if (streamError) throw new Error(streamError);
 
         if (chunkContent || chunkReasoning) {
           setMessages((prev) => {
@@ -377,7 +386,7 @@ export default function App() {
         return;
       }
       console.error('Failed to send message:', error);
-      setMessages((prev) => [...prev, { role: 'assistant', content: "An error occurred in the transmission channel." }]);
+      setMessages((prev) => [...prev, { role: 'assistant', content: `Transmission error — ${error?.message || 'unknown failure'}`, error: true }]);
     } finally {
       // Only clear state if this is still the active request
       if (abortControllerRef.current === controller) {
@@ -654,7 +663,7 @@ export default function App() {
                   <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
                     {msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}
                   </span>
-                  <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? 'text-zinc-400' : msg.role === 'system' ? 'text-blue-400/80' : 'text-zinc-100'} markdown-body`}>
+                  <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? 'text-zinc-400' : msg.role === 'system' ? 'text-blue-400/80' : msg.error ? 'text-red-400/80' : 'text-zinc-100'} markdown-body`}>
                     {msg.role === 'assistant' ? (
                       <>
                         {msg.reasoning && (
