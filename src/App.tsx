@@ -1003,6 +1003,20 @@ export default function App() {
                         remarkPlugins={[remarkGfm]}
                         components={{
                           hr: () => <hr className="border-t border-zinc-800/80 my-8" />,
+                          strong: ({ node, children, ...props }) => {
+                            const start = node?.position?.start?.offset ?? -1;
+                            const before = start >= 0 ? msg.content.slice(0, start) : '';
+                            const inQuote = (before.match(/"/g) || []).length % 2 === 1;
+                            return (
+                              <strong
+                                style={{ color: inQuote ? '#fff' : 'rgb(161 161 170 / 0.92)' }}
+                                className={inQuote ? 'font-semibold' : 'font-bold'}
+                                {...props}
+                              >
+                                {children}
+                              </strong>
+                            );
+                          },
                           em: ({ node, children, ...props }) => {
                             const start = node?.position?.start?.offset ?? -1;
                             const before = start >= 0 ? msg.content.slice(0, start) : '';

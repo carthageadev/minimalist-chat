@@ -132,8 +132,7 @@ textarea::-webkit-scrollbar {
     padding-left: 0.5em;
 }
 .markdown-body strong {
-    font-weight: 500;
-    color: #fff;
+    font-weight: 600;
 }
 
 /* App-like smooth fade on page reload (View Transitions API) */
