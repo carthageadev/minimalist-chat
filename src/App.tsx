@@ -8,6 +8,21 @@ import { motion, AnimatePresence } from 'motion/react';
 
 type Role = 'user' | 'assistant' | 'system';
 
+// Semi-encryption for localStorage (obfuscation, not security)
+const CIPHER_KEY = 'hermes-rp-vault';
+const xorCipher = (input: string) =>
+  input.split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ CIPHER_KEY.charCodeAt(i % CIPHER_KEY.length))).join('');
+const encrypt = (text: string) => btoa(xorCipher(encodeURIComponent(text)));
+const decrypt = (blob: string | null) => {
+  if (!blob) return '';
+  try {
+    return decodeURIComponent(xorCipher(atob(blob)));
+  } catch {
+    return blob; // legacy plaintext value
+  }
+};
+const store = (key: string, value: string) => localStorage.setItem(key, encrypt(value));
+
 const PERSONA_SYSTEM_PROMPTS: Record<'user' | 'char', string> = {
   user: `You are a master character writer for immersive, realistic text roleplays. Write a vivid persona description for "{{user}}" — the user's character. Include: full name, rough age, appearance, personality traits, a hint of backstory, and what makes them compelling. Third-person prose, under 150 words, no markdown, no lists. Output ONLY the description itself.`,
   char: `You are a master character-card writer for immersive AI roleplays (SillyTavern-style cards). Write a rich definition for "{{char}}" — the AI's roleplay character. Include: full name, appearance, personality, backstory, distinct speech style and quirks, and how {{char}} tends to relate to {{user}}. Third-person prose, under 220 words, no markdown, no lists. Output ONLY the description itself.`,
@@ -128,8 +143,10 @@ export default function App() {
 
   const showRpRing = rpMode && (rpReveal || isLoading || isStreaming);
   const [showSetup, setShowSetup] = useState(false);
-  const [userPersona, setUserPersona] = useState<string>(() => localStorage.getItem('rp-user-persona') || '');
-  const [charPersona, setCharPersona] = useState<string>(() => localStorage.getItem('rp-char-persona') || '');
+  const [userPersona, setUserPersona] = useState<string>(() => decrypt(localStorage.getItem('rp-user-persona')));
+  const [charPersona, setCharPersona] = useState<string>(() => decrypt(localStorage.getItem('rp-char-persona')));
+  const [systemPrompt, setSystemPrompt] = useState<string>(() => decrypt(localStorage.getItem('rp-system-prompt')));
+  const [showSystemPrompt, setShowSystemPrompt] = useState(false);
   const [generating, setGenerating] = useState<'user' | 'char' | null>(null);
 
   const generatePersona = async (kind: 'user' | 'char') => {
@@ -269,6 +286,7 @@ export default function App() {
           model,
           rp: rpMode,
           ...(rpMode ? { userPersona, charPersona } : {}),
+          ...(rpMode && systemPrompt.trim() ? { customSystemPrompt: systemPrompt } : {}),
           ...(model.startsWith('poolside/') ? { thinking: lagunaThinking } : {}),
         }),
         signal: controller.signal,
@@ -577,7 +595,17 @@ export default function App() {
               >
                 <X size={16} />
               </button>
-              <h2 className="text-base font-medium text-zinc-200 mb-6 font-sans tracking-tight">Roleplay Setup</h2>
+              <h2 className="text-base font-medium text-zinc-200 mb-4 font-sans tracking-tight">Roleplay Setup</h2>
+              <button
+                type="button"
+                onClick={() => setShowSystemPrompt(true)}
+                className="w-full flex items-center justify-between border border-zinc-800/80 hover:border-zinc-600 rounded-sm px-3 py-2 mb-6 text-left transition-colors focus:outline-none group/sp"
+              >
+                <span className="font-mono text-[10px] uppercase tracking-wider text-zinc-400 group-hover/sp:text-zinc-200 transition-colors">
+                  Edit system prompt
+                </span>
+                <span className="font-mono text-[9px] uppercase tracking-wider text-amber-500/70">⚠ advanced</span>
+              </button>
               <label className="block font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
                 Your persona
               </label>
@@ -592,7 +620,7 @@ export default function App() {
                   type="button"
                   onClick={() => generatePersona('user')}
                   disabled={!!generating}
-                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-400 border border-zinc-700/80 hover:border-zinc-500 hover:text-zinc-200 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-700/80 disabled:hover:text-zinc-400 transition-colors focus:outline-none"
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-300 border border-zinc-600/80 hover:border-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/40 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-600/80 disabled:hover:text-zinc-300 transition-colors focus:outline-none"
                 >
                   <Sparkles size={11} className={generating === 'user' ? 'animate-pulse' : ''} />
                   {generating === 'user' ? 'Dreaming...' : 'Generate for me'}
@@ -612,7 +640,7 @@ export default function App() {
                   type="button"
                   onClick={() => generatePersona('char')}
                   disabled={!!generating}
-                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-400 border border-zinc-700/80 hover:border-zinc-500 hover:text-zinc-200 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-700/80 disabled:hover:text-zinc-400 transition-colors focus:outline-none"
+                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-zinc-300 border border-zinc-600/80 hover:border-zinc-400 hover:text-zinc-100 hover:bg-zinc-800/40 rounded-sm px-2.5 py-1 disabled:opacity-40 disabled:hover:border-zinc-600/80 disabled:hover:text-zinc-300 transition-colors focus:outline-none"
                 >
                   <Sparkles size={11} className={generating === 'char' ? 'animate-pulse' : ''} />
                   {generating === 'char' ? 'Dreaming...' : 'Generate for me'}
@@ -620,14 +648,72 @@ export default function App() {
               </div>
               <button
                 onClick={() => {
-                  localStorage.setItem('rp-user-persona', userPersona);
-                  localStorage.setItem('rp-char-persona', charPersona);
+                  store('rp-user-persona', userPersona);
+                  store('rp-char-persona', charPersona);
                   setShowSetup(false);
                 }}
                 className="w-full py-2.5 bg-zinc-100 hover:bg-white text-zinc-900 transition-colors rounded-sm text-sm font-medium"
               >
                 Save
               </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* System Prompt Editor Modal */}
+      <AnimatePresence>
+        {showSystemPrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[110] flex items-center justify-center bg-black/70 backdrop-blur-sm p-6 pointer-events-auto"
+            onClick={() => setShowSystemPrompt(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-lg bg-[#0c0c0e] border border-zinc-800 rounded-sm shadow-2xl p-8 normal-case tracking-normal"
+            >
+              <button
+                onClick={() => setShowSystemPrompt(false)}
+                className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none"
+              >
+                <X size={16} />
+              </button>
+              <h2 className="text-base font-medium text-zinc-200 mb-1 font-sans tracking-tight">System Prompt</h2>
+              <p className="font-mono text-[10px] text-amber-500/70 mb-4">
+                ⚠ Raw prompt — the AI will follow exactly what you write, nothing else.
+              </p>
+              <textarea
+                value={systemPrompt}
+                onChange={(e) => setSystemPrompt(e.target.value)}
+                placeholder="Write your own system prompt from scratch..."
+                className="w-full h-64 mb-4 bg-zinc-900/60 border border-zinc-800/80 focus:border-zinc-600 rounded-sm p-3 font-mono text-xs text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setSystemPrompt('');
+                    store('rp-system-prompt', '');
+                  }}
+                  className="px-4 py-2.5 border border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-zinc-100 transition-colors rounded-sm text-sm"
+                >
+                  Reset to default
+                </button>
+                <button
+                  onClick={() => {
+                    store('rp-system-prompt', systemPrompt);
+                    setShowSystemPrompt(false);
+                  }}
+                  className="flex-1 py-2.5 bg-zinc-100 hover:bg-white text-zinc-900 transition-colors rounded-sm text-sm font-medium"
+                >
+                  Save prompt
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

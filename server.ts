@@ -16,7 +16,7 @@ async function startServer() {
 
   app.post("/api/chat", async (req, res) => {
     try {
-      const { messages, model, thinking, rp, userPersona, charPersona } = req.body;
+      const { messages, model, thinking, rp, userPersona, charPersona, customSystemPrompt } = req.body;
       if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ error: "Messages array is required." });
       }
@@ -47,17 +47,23 @@ Character control rules (strict):
 - NEVER speak, act, think, or decide anything on behalf of {{user}}.
 - Never write {{user}}'s dialogue or actions; always leave room for them to respond.`;
 
-      let personaBlock = "";
-      if (typeof userPersona === "string" && userPersona.trim()) {
-        personaBlock += `\n\n{{user}} (the user's character):\n${userPersona.trim()}`;
-      }
-      if (typeof charPersona === "string" && charPersona.trim()) {
-        personaBlock += `\n\n{{char}} (your character — you speak and act ONLY as {{char}}):\n${charPersona.trim()}`;
+      let systemContent = rp ? rpSystemPrompt : baseSystemPrompt;
+      if (rp && typeof customSystemPrompt === "string" && customSystemPrompt.trim()) {
+        systemContent = customSystemPrompt;
+      } else if (rp) {
+        let personaBlock = "";
+        if (typeof userPersona === "string" && userPersona.trim()) {
+          personaBlock += `\n\n{{user}} (the user's character):\n${userPersona.trim()}`;
+        }
+        if (typeof charPersona === "string" && charPersona.trim()) {
+          personaBlock += `\n\n{{char}} (your character — you speak and act ONLY as {{char}}):\n${charPersona.trim()}`;
+        }
+        systemContent += personaBlock;
       }
 
       const systemMessage = {
         role: "system",
-        content: rp ? rpSystemPrompt + personaBlock : baseSystemPrompt,
+        content: systemContent,
       };
 
       const formattedMessages = [systemMessage, ...messages];
