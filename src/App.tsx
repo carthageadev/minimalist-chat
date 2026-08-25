@@ -672,7 +672,12 @@ export default function App() {
                         remarkPlugins={[remarkGfm]}
                         components={{
                           hr: () => <hr className="border-t border-zinc-800/80 my-8" />,
-                          em: ({ node, ...props }) => <span className="text-zinc-500/80" {...props} />,
+                          em: ({ node, children, ...props }) => {
+                            const start = node?.position?.start?.offset ?? -1;
+                            const before = start >= 0 ? msg.content.slice(0, start) : '';
+                            const inQuote = (before.match(/"/g) || []).length % 2 === 1;
+                            return <span className={inQuote ? 'italic font-medium' : 'text-zinc-500/80'} {...props}>{children}</span>;
+                          },
                           table: ({ node, ...props }) => (
                             <div className="w-full overflow-x-auto my-6 border border-zinc-800/80 rounded-sm">
                               <table className="w-full text-sm text-left border-collapse" {...props} />
