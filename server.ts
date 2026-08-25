@@ -85,6 +85,10 @@ Character control rules (strict):
         requestBody.max_tokens = 8192;
       }
 
+      if (rp) {
+        requestBody.temperature = 1;
+      }
+
       const stream = await (client.chat.completions.create(requestBody as any) as Promise<any>);
 
       for await (const chunk of stream) {
