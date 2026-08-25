@@ -171,15 +171,23 @@ export default function App() {
   const [promptIsCustom, setPromptIsCustom] = useState<boolean>(() => !!decrypt(localStorage.getItem('rp-system-prompt')).trim());
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
   const [generating, setGenerating] = useState<'user' | 'char' | null>(null);
+  const personaAbortRef = useRef<AbortController | null>(null);
 
   const generatePersona = async (kind: 'user' | 'char') => {
+    if (generating === kind) {
+      personaAbortRef.current?.abort();
+      return;
+    }
     if (generating) return;
     setGenerating(kind);
+    const controller = new AbortController();
+    personaAbortRef.current = controller;
     const current = (kind === 'user' ? userPersona : charPersona).trim();
     try {
       const resp = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           model,
           messages: [
@@ -214,10 +222,15 @@ export default function App() {
             } catch (e) {}
           }
         }
+        if (controller.signal.aborted) break;
         if (kind === 'user') setUserPersona(out.trim());
         else setCharPersona(out.trim());
       }
+    } catch (e: any) {
+      if (e?.name === 'AbortError') return;
+      console.error('Generate failed:', e);
     } finally {
+      if (personaAbortRef.current === controller) personaAbortRef.current = null;
       setGenerating(null);
     }
   };
@@ -670,11 +683,11 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => generatePersona('user')}
-                  disabled={!!generating}
-                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 disabled:opacity-40 transition-colors focus:outline-none"
+                  title={generating === 'user' ? 'Cancel' : undefined}
+                  className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 transition-colors focus:outline-none ${generating ? 'opacity-40' : ''} ${generating && generating !== 'user' ? 'pointer-events-none' : ''}`}
                 >
-                  <Sparkles size={11} className={generating === 'user' ? 'animate-pulse' : ''} />
-                  {generating === 'user' ? 'Dreaming...' : 'Generate for me'}
+                  <Sparkles size={11} />
+                  Generate for me
                 </button>
               </div>
               <label className="block font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
@@ -690,11 +703,11 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => generatePersona('char')}
-                  disabled={!!generating}
-                  className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 disabled:opacity-40 transition-colors focus:outline-none"
+                  title={generating === 'char' ? 'Cancel' : undefined}
+                  className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 transition-colors focus:outline-none ${generating ? 'opacity-40' : ''} ${generating && generating !== 'char' ? 'pointer-events-none' : ''}`}
                 >
-                  <Sparkles size={11} className={generating === 'char' ? 'animate-pulse' : ''} />
-                  {generating === 'char' ? 'Dreaming...' : 'Generate for me'}
+                  <Sparkles size={11} />
+                  Generate for me
                 </button>
               </div>
               <button
