@@ -12,6 +12,10 @@ body {
   overflow: hidden;
 }
 
+html {
+  background-color: #09090b; /* never flash white behind transitions */
+}
+
 /* Minimalist transparent scrollbars */
 ::-webkit-scrollbar {
   width: 2px;

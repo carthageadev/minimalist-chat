@@ -259,6 +259,9 @@ export default function App() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    // Only for browsers without View Transitions — otherwise the VT snapshot
+    // gets captured mid-fade and the reload never reaches full black.
+    if ('startViewTransition' in document) return;
     const handleBeforeUnload = () => {
       document.body.classList.add('app-fading');
     };
