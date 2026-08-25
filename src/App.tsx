@@ -1007,7 +1007,7 @@ export default function App() {
                             const start = node?.position?.start?.offset ?? -1;
                             const before = start >= 0 ? msg.content.slice(0, start) : '';
                             const inQuote = (before.match(/"/g) || []).length % 2 === 1;
-                            return <span className={inQuote ? 'italic font-medium' : 'text-zinc-500/80'} {...props}>{children}</span>;
+                            return <span className={inQuote ? 'text-zinc-100 italic font-medium' : 'text-zinc-500/80'} {...props}>{children}</span>;
                           },
                           table: ({ node, ...props }) => (
                             <div className="w-full overflow-x-auto my-6 border border-zinc-800/80 rounded-sm">
