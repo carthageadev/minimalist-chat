@@ -8,14 +8,6 @@ import { motion, AnimatePresence } from 'motion/react';
 
 type Role = 'user' | 'assistant' | 'system';
 
-const PERSONA_SEEDS = [
-  'a disgraced imperial cartographer', 'a night-shift hospice nurse who hears the dead humming',
-  'a duelist banned from every court in the empire', 'a deep-sea salvager with survivor\'s guilt',
-  'a wandering plague doctor with modern ideas', 'a desert caravan guide smuggling memories',
-  'a fallen choir prodigy turned mercenary', 'a clockmaker obsessed with a machine that predicts deaths',
-  'a war photographer who stopped believing in truth', 'a lighthouse keeper who receives letters from the sea',
-];
-
 const PERSONA_SYSTEM_PROMPTS: Record<'user' | 'char', string> = {
   user: `You are a master character writer for immersive, realistic text roleplays. Write a vivid persona description for "{{user}}" — the user's character. Include: full name, rough age, appearance, personality traits, a hint of backstory, and what makes them compelling. Third-person prose, under 150 words, no markdown, no lists. Output ONLY the description itself.`,
   char: `You are a master character-card writer for immersive AI roleplays (SillyTavern-style cards). Write a rich definition for "{{char}}" — the AI's roleplay character. Include: full name, appearance, personality, backstory, distinct speech style and quirks, and how {{char}} tends to relate to {{user}}. Third-person prose, under 220 words, no markdown, no lists. Output ONLY the description itself.`,
@@ -133,7 +125,6 @@ export default function App() {
     if (generating) return;
     setGenerating(kind);
     const current = (kind === 'user' ? userPersona : charPersona).trim();
-    const seed = PERSONA_SEEDS[Math.floor(Math.random() * PERSONA_SEEDS.length)];
     try {
       const resp = await fetch('/api/chat', {
         method: 'POST',
@@ -146,7 +137,7 @@ export default function App() {
               role: 'user',
               content: current
                 ? `Here is my rough idea. Expand and elevate it into the full description — keep my core idea but make it richer and more original:\n\n${current}`
-                : `Create a completely fresh, unique concept from scratch. Random inspiration seed: ${seed}. Surprise me.`,
+                : `Create a completely fresh, unique concept entirely of your own choosing. Be random, surprising and original — avoid clichés and anything predictable.`,
             },
           ],
         }),
