@@ -259,12 +259,12 @@ export default function App() {
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    // Guarantee the fade on keyboard reloads — Chrome sometimes truncates
-    // cross-document view transitions on rapid consecutive reloads.
+    // Fade the live DOM to black ourselves, then reload — no VT handoff hitch.
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'F5' || ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r')) {
         e.preventDefault();
-        document.startViewTransition(() => location.reload());
+        document.body.classList.add('app-fading');
+        setTimeout(() => location.reload(), 550);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -272,8 +272,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Only for browsers without View Transitions — otherwise the VT snapshot
-    // gets captured mid-fade and the reload never reaches full black.
+    // Fallback only for browsers without View Transitions (toolbar reloads etc).
     if ('startViewTransition' in document) return;
     const handleBeforeUnload = () => {
       document.body.classList.add('app-fading');
