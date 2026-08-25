@@ -45,12 +45,22 @@ const scrambleDissolve = (
       frame++;
       const progress = frame / totalFrames;
       const eased = progress * progress; // easeIn — slow start, faster finish
-      const curLen = Math.max(0, Math.ceil(len * (1 - eased) + (Math.random() - 0.5) * 0.6));
+      const curLen = Math.max(0, Math.floor(len * (1 - eased)));
+      const zone = 14; // scramble head width chasing the deletion front
       let out = '';
       for (let i = 0; i < curLen; i++) {
-        const p = progress + (Math.random() - 0.5) * 0.2;
-        if (p > 0.32) out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
-        else out += from[i] ?? ' ';
+        const d = curLen - i; // distance to the deletion front
+        if (d <= zone) {
+          // inside the eating head — scramble probability ramps toward the front
+          const prob = d / zone;
+          if (Math.random() < 0.35 + prob * 0.55) {
+            out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+          } else {
+            out += from[i];
+          }
+        } else {
+          out += from[i]; // solid until the wave reaches it
+        }
       }
       onLast(out);
       setText(out);
