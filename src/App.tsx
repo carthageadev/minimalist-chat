@@ -570,7 +570,7 @@ export default function App() {
               </button>
               <h2 className="text-base font-medium text-zinc-200 mb-6 font-sans tracking-tight">Roleplay Setup</h2>
               <label className="block font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
-                {'{{user}}'} — your persona
+                Your persona
               </label>
               <textarea
                 value={userPersona}
@@ -590,12 +590,12 @@ export default function App() {
                 </button>
               </div>
               <label className="block font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
-                {'{{char}}'} — character description
+                Character description
               </label>
               <textarea
                 value={charPersona}
                 onChange={(e) => setCharPersona(e.target.value)}
-                placeholder="Define your character — like a character card. Name, personality, appearance, how {{char}} speaks and acts..."
+                placeholder="Define your character — name, personality, appearance, how they speak and act..."
                 className={`persona-box w-full h-32 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${generating === 'char' ? 'persona-glow' : ''}`}
               />
               <div className="flex justify-end mt-2 mb-6">
