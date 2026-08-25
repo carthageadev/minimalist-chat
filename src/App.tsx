@@ -258,6 +258,14 @@ export default function App() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      document.body.classList.add('app-fading');
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   const stopGeneration = () => {
     abortControllerRef.current?.abort();
     abortControllerRef.current = null;
@@ -471,7 +479,12 @@ export default function App() {
   };
 
   return (
-    <div className="fixed inset-0 bg-[#09090b] text-zinc-100 font-sans selection:bg-zinc-800 flex flex-col overflow-hidden">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6, ease: 'easeOut' }}
+      className="fixed inset-0 bg-[#09090b] text-zinc-100 font-sans selection:bg-zinc-800 flex flex-col overflow-hidden"
+    >
       {/* Top Bar - Strictly functional, no yapping */}
       <header className="absolute top-0 w-full p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10 pointer-events-auto">
         <div className="flex items-center gap-3">
@@ -981,6 +994,6 @@ export default function App() {
           </motion.form>
         </motion.div>
       </main>
-    </div>
+    </motion.div>
   );
 }

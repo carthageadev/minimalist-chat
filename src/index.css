@@ -132,6 +132,30 @@ textarea::-webkit-scrollbar {
     color: #fff;
 }
 
+/* App-like smooth fade on page reload (View Transitions API) */
+@media (prefers-reduced-motion: no-preference) {
+    @view-transition {
+        navigation: auto;
+    }
+    ::view-transition-old(root) {
+        animation: vt-fade-out 0.25s ease both;
+    }
+    ::view-transition-new(root) {
+        animation: vt-fade-in 0.45s ease both;
+    }
+}
+@keyframes vt-fade-out {
+    to { opacity: 0; }
+}
+@keyframes vt-fade-in {
+    from { opacity: 0; }
+}
+
+body.app-fading {
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
 /* Secret RP mode — faint moving magenta gradient border on the input */
 @keyframes rp-border-shift {
     0% { background-position: 0% 50%; }
