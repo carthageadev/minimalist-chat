@@ -170,18 +170,22 @@ export default function App() {
   });
   const [promptIsCustom, setPromptIsCustom] = useState<boolean>(() => !!decrypt(localStorage.getItem('rp-system-prompt')).trim());
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
-  const [generating, setGenerating] = useState<'user' | 'char' | null>(null);
-  const personaAbortRef = useRef<AbortController | null>(null);
+  const [genUser, setGenUser] = useState(false);
+  const [genChar, setGenChar] = useState(false);
+  const userAbortRef = useRef<AbortController | null>(null);
+  const charAbortRef = useRef<AbortController | null>(null);
 
   const generatePersona = async (kind: 'user' | 'char') => {
-    if (generating === kind) {
-      personaAbortRef.current?.abort();
+    const isActive = kind === 'user' ? genUser : genChar;
+    const abortRef = kind === 'user' ? userAbortRef : charAbortRef;
+    const setGen = kind === 'user' ? setGenUser : setGenChar;
+    if (isActive) {
+      abortRef.current?.abort();
       return;
     }
-    if (generating) return;
-    setGenerating(kind);
+    setGen(true);
     const controller = new AbortController();
-    personaAbortRef.current = controller;
+    abortRef.current = controller;
     const current = (kind === 'user' ? userPersona : charPersona).trim();
     try {
       const resp = await fetch('/api/chat', {
@@ -230,8 +234,8 @@ export default function App() {
       if (e?.name === 'AbortError') return;
       console.error('Generate failed:', e);
     } finally {
-      if (personaAbortRef.current === controller) personaAbortRef.current = null;
-      setGenerating(null);
+      if (abortRef.current === controller) abortRef.current = null;
+      setGen(false);
     }
   };
   const rpClicksRef = useRef<{ count: number; first: number }>({ count: 0, first: 0 });
@@ -677,14 +681,14 @@ export default function App() {
                 value={userPersona}
                 onChange={(e) => setUserPersona(e.target.value)}
                 placeholder="Who is the user in this story? Name, appearance, personality..."
-                className={`persona-box w-full h-24 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${generating === 'user' ? 'persona-glow' : ''}`}
+                className={`persona-box w-full h-24 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${genUser ? 'persona-glow' : ''}`}
               />
               <div className="flex justify-end mt-2 mb-5">
                 <button
                   type="button"
                   onClick={() => generatePersona('user')}
-                  title={generating === 'user' ? 'Cancel' : undefined}
-                  className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 transition-colors focus:outline-none ${generating ? 'opacity-40' : ''} ${generating && generating !== 'user' ? 'pointer-events-none' : ''}`}
+                  title={genUser ? 'Cancel' : undefined}
+                  className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 transition-colors focus:outline-none ${genUser ? 'opacity-40' : ''}`}
                 >
                   <Sparkles size={11} />
                   Generate for me
@@ -697,14 +701,14 @@ export default function App() {
                 value={charPersona}
                 onChange={(e) => setCharPersona(e.target.value)}
                 placeholder="Define your character — name, personality, appearance, how they speak and act..."
-                className={`persona-box w-full h-32 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${generating === 'char' ? 'persona-glow' : ''}`}
+                className={`persona-box w-full h-32 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${genChar ? 'persona-glow' : ''}`}
               />
               <div className="flex justify-end mt-2 mb-6">
                 <button
                   type="button"
                   onClick={() => generatePersona('char')}
-                  title={generating === 'char' ? 'Cancel' : undefined}
-                  className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 transition-colors focus:outline-none ${generating ? 'opacity-40' : ''} ${generating && generating !== 'char' ? 'pointer-events-none' : ''}`}
+                  title={genChar ? 'Cancel' : undefined}
+                  className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 transition-colors focus:outline-none ${genChar ? 'opacity-40' : ''}`}
                 >
                   <Sparkles size={11} />
                   Generate for me
