@@ -307,6 +307,7 @@ export default function App() {
         body: JSON.stringify({
           model,
           thinking: false,
+          isPersona: true,
           messages: [
             { role: 'system', content: PERSONA_SYSTEM_PROMPTS[kind] },
             {

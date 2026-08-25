@@ -15,7 +15,7 @@ export default async function handler(req: Request) {
   }
 
   try {
-    const { messages, model, thinking, rp, userPersona, charPersona, customSystemPrompt } = await req.json();
+    const { messages, model, thinking, rp, userPersona, charPersona, customSystemPrompt, isPersona } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "Messages array is required." }), {
         status: 400,
@@ -66,12 +66,7 @@ Character control rules (strict):
       systemContent += personaBlock;
     }
 
-    const systemMessage = {
-      role: "system",
-      content: systemContent,
-    };
-
-    const formattedMessages = [systemMessage, ...messages];
+    const formattedMessages = isPersona ? messages : [{ role: "system" as const, content: systemContent }, ...messages];
 
     const requestBody: Record<string, unknown> = {
       model: selectedModel,

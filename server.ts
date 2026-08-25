@@ -16,7 +16,7 @@ async function startServer() {
 
   app.post("/api/chat", async (req, res) => {
     try {
-      const { messages, model, thinking, rp, userPersona, charPersona, customSystemPrompt } = req.body;
+      const { messages, model, thinking, rp, userPersona, charPersona, customSystemPrompt, isPersona } = req.body;
       if (!messages || !Array.isArray(messages)) {
         return res.status(400).json({ error: "Messages array is required." });
       }
@@ -61,12 +61,7 @@ Character control rules (strict):
         systemContent += personaBlock;
       }
 
-      const systemMessage = {
-        role: "system",
-        content: systemContent,
-      };
-
-      const formattedMessages = [systemMessage, ...messages];
+      const formattedMessages = isPersona ? messages : [{ role: "system", content: systemContent }, ...messages];
 
       res.setHeader("Content-Type", "text/event-stream");
       res.setHeader("Cache-Control", "no-cache");
