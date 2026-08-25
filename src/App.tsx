@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Lock, Terminal, Maximize, Minimize, X, Square } from 'lucide-react';
+import { Send, Lock, Terminal, Maximize, Minimize, X, Square, Check, Brain } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -8,9 +8,16 @@ import { motion, AnimatePresence } from 'motion/react';
 
 type Role = 'user' | 'assistant' | 'system';
 
+const MODELS = [
+  { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano' },
+  { id: 'poolside/laguna-xs-2.1', label: 'Laguna XS 2.1' },
+  { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B' },
+];
+
 interface Message {
   role: Role;
   content: string;
+  reasoning?: string;
 }
 
 // Keep history bounded so requests stay within the model's context window.
@@ -99,6 +106,45 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [model, setModel] = useState<string>(() => localStorage.getItem('selected-model') || MODELS[0].id);
+  const [showModelPicker, setShowModelPicker] = useState(false);
+  const [lagunaThinking, setLagunaThinking] = useState<boolean>(() => localStorage.getItem('laguna-thinking') !== '0');
+  const [rpMode, setRpMode] = useState<boolean>(false);
+  const rpClicksRef = useRef<{ count: number; first: number }>({ count: 0, first: 0 });
+
+  const selectModel = (id: string) => {
+    setModel(id);
+    localStorage.setItem('selected-model', id);
+    setShowModelPicker(false);
+  };
+
+  const handleLagunaClick = () => {
+    setModel('poolside/laguna-xs-2.1');
+    localStorage.setItem('selected-model', 'poolside/laguna-xs-2.1');
+    const now = Date.now();
+    const state = rpClicksRef.current;
+    if (now - state.first > 2500) {
+      state.count = 1;
+      state.first = now;
+    } else {
+      state.count += 1;
+    }
+    if (state.count >= 5) {
+      setRpMode((v) => !v);
+      state.count = 0;
+      setShowModelPicker(false);
+    }
+  };
+
+  const toggleLagunaThinking = () => {
+    setLagunaThinking((v) => {
+      const next = !v;
+      localStorage.setItem('laguna-thinking', next ? '1' : '0');
+      return next;
+    });
+  };
+
+  const selectedLabel = MODELS.find((m) => m.id === model)?.label ?? model;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -148,7 +194,12 @@ export default function App() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: currentMessages }),
+        body: JSON.stringify({
+          messages: currentMessages,
+          model,
+          rp: rpMode,
+          ...(model.startsWith('poolside/') ? { thinking: lagunaThinking } : {}),
+        }),
         signal: controller.signal,
       });
 
@@ -181,7 +232,8 @@ export default function App() {
         buffer = lines.pop() || '';
         
         let chunkContent = '';
-        
+        let chunkReasoning = '';
+
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const dataStr = line.slice(6).trim();
@@ -189,6 +241,9 @@ export default function App() {
             try {
               const data = JSON.parse(dataStr);
               if (data.error) continue;
+              if (data.reasoning) {
+                chunkReasoning += data.reasoning;
+              }
               if (data.content) {
                 chunkContent += data.content;
                 fullAssistantMessage += data.content;
@@ -198,14 +253,18 @@ export default function App() {
             }
           }
         }
-        
-        if (chunkContent) {
+
+        if (chunkContent || chunkReasoning) {
           setMessages((prev) => {
             const prevMessages = [...prev];
             const lastIndex = prevMessages.length - 1;
             const last = prevMessages[lastIndex];
             if (last && last.role === 'assistant') {
-              prevMessages[lastIndex] = { ...last, content: last.content + chunkContent };
+              prevMessages[lastIndex] = {
+                ...last,
+                content: last.content + chunkContent,
+                reasoning: (last.reasoning || '') + chunkReasoning,
+              };
             }
             return prevMessages;
           });
@@ -313,13 +372,65 @@ export default function App() {
           </button>
         </div>
         
-        <button 
-          onClick={() => setShowContact(true)}
-          className="flex items-center gap-2 hover:text-zinc-300 transition-colors focus:outline-none"
-        >
-          <span>Hermes-3_Llama-3.1</span>
-          <Terminal size={12} className="text-zinc-600" />
-        </button>
+        <div className="relative flex items-center">
+          <button
+            onClick={() => setShowModelPicker((v) => !v)}
+            className={`flex items-center gap-2 transition-colors focus:outline-none ${showModelPicker ? 'text-zinc-300' : 'hover:text-zinc-300'}`}
+          >
+            <span>{selectedLabel}</span>
+            <Terminal size={12} className="text-zinc-600" />
+          </button>
+
+          <AnimatePresence>
+            {showModelPicker && (
+              <>
+                <div
+                  className="fixed inset-0 z-20"
+                  onClick={() => setShowModelPicker(false)}
+                />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95, y: -6 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95, y: -6 }}
+                  transition={{ duration: 0.1, ease: "easeOut" }}
+                  className="absolute right-0 top-full mt-3 z-30 w-56 bg-[#0c0c0e] border border-zinc-800 rounded-sm shadow-2xl py-1.5 normal-case tracking-normal"
+                >
+                  {MODELS.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={m.id.startsWith('poolside/') ? handleLagunaClick : () => selectModel(m.id)}
+                      className={`w-full flex items-center justify-between gap-3 px-4 py-2 text-left font-mono text-[11px] transition-colors focus:outline-none ${m.id === model ? 'text-zinc-100 bg-zinc-800/40' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/30'}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span>{m.label}</span>
+                        {m.id.startsWith('poolside/') && (
+                          <motion.span
+                            role="switch"
+                            aria-checked={lagunaThinking}
+                            aria-label="Toggle thinking"
+                            title={lagunaThinking ? 'Thinking: on' : 'Thinking: off'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleLagunaThinking();
+                            }}
+                            whileTap={{ scale: 0.7, rotate: -8 }}
+                            animate={{ scale: [1, 1.25, 1] }}
+                            key={String(lagunaThinking)}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className={`cursor-pointer shrink-0 transition-colors duration-200 ${lagunaThinking ? 'text-zinc-100' : 'text-zinc-600 hover:text-zinc-400'}`}
+                          >
+                            <Brain size={13} strokeWidth={2} />
+                          </motion.span>
+                        )}
+                      </span>
+                      {m.id === model && <Check size={12} className="text-zinc-400 shrink-0" />}
+                    </button>
+                  ))}
+                </motion.div>
+              </>
+            )}
+          </AnimatePresence>
+        </div>
       </header>
 
       {/* Contact Modal */}
@@ -396,7 +507,19 @@ export default function App() {
                   </span>
                   <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? 'text-zinc-400' : msg.role === 'system' ? 'text-blue-400/80' : 'text-zinc-100'} markdown-body`}>
                     {msg.role === 'assistant' ? (
-                      <ReactMarkdown
+                      <>
+                        {msg.reasoning && (
+                          <details className="mb-4 group">
+                            <summary className="cursor-pointer select-none inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-zinc-600 hover:text-zinc-400 transition-colors">
+                              <span>[✓] Reasoning</span>
+                              <span className="opacity-40 group-open:rotate-180 transition-transform">▼</span>
+                            </summary>
+                            <div className="mt-2 pl-3 border-l border-zinc-800/50 font-mono text-[11px] leading-relaxed text-zinc-500/80 whitespace-pre-wrap">
+                              {msg.reasoning}
+                            </div>
+                          </details>
+                        )}
+                        <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
                           hr: () => <hr className="border-t border-zinc-800/80 my-8" />,
@@ -460,6 +583,7 @@ export default function App() {
                           }
                         }}
                       >{msg.content}</ReactMarkdown>
+                      </>
                     ) : (
                       <div className="whitespace-pre-wrap">
                         {msg.content}
@@ -527,7 +651,7 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          <motion.form layout onSubmit={handleSubmit} className="relative group w-full flex items-center pointer-events-auto">
+          <motion.form layout onSubmit={handleSubmit} className={`relative group w-full flex items-center pointer-events-auto ${rpMode ? 'rp-active' : ''}`}>
             <textarea
               id="chat-input"
               value={input}

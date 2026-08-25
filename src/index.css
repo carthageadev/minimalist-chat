@@ -131,3 +131,34 @@ textarea::-webkit-scrollbar {
     font-weight: 500;
     color: #fff;
 }
+
+/* Secret RP mode — faint moving magenta gradient border on the input */
+@keyframes rp-border-shift {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+@keyframes rp-breathe {
+    0%, 100% { opacity: 0.18; }
+    50% { opacity: 0.55; }
+}
+.rp-active {
+    box-shadow: 0 0 24px -6px rgba(217, 70, 239, 0.25);
+    border-radius: 3px;
+}
+.rp-active::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 4px;
+    padding: 1px;
+    background: linear-gradient(110deg, transparent 20%, #d946ef 40%, #f5d0fe 50%, #c026d3 60%, transparent 80%);
+    background-size: 200% 100%;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    animation:
+        rp-border-shift 7s linear infinite,
+        rp-breathe 7s ease-in-out infinite;
+    pointer-events: none;
+}
