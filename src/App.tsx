@@ -35,7 +35,6 @@ const scrambleDissolve = (
   new Promise<'done' | 'aborted'>((resolve) => {
     const totalFrames = Math.max(1, Math.floor(duration / 16));
     let frame = 0;
-    let last = from;
     const len = from.length;
     const id = setInterval(() => {
       if (signal.aborted) {
@@ -45,15 +44,14 @@ const scrambleDissolve = (
       }
       frame++;
       const progress = frame / totalFrames;
+      // Length shrinks monotonically — never grows beyond original
+      const curLen = Math.max(0, Math.ceil(len * (1 - progress) + (Math.random() - 0.5) * 0.8));
       let out = '';
-      for (let i = 0; i < len; i++) {
-        const jitter = (Math.random() - 0.5) * 0.3;
-        const p = progress + jitter + (i / len) * 0.15;
-        if (p > 0.72) continue;
-        if (p > 0.28) out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
-        else out += from[i];
+      for (let i = 0; i < curLen; i++) {
+        const p = progress + (Math.random() - 0.5) * 0.2;
+        if (p > 0.32) out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+        else out += from[i] ?? ' ';
       }
-      last = out;
       onLast(out);
       setText(out);
       if (frame >= totalFrames) {
@@ -82,8 +80,8 @@ const scrambleMorph = (
     const starts: number[] = [];
     const ends: number[] = [];
     for (let i = 0; i < maxLen; i++) {
-      const s = Math.floor(Math.random() * (totalFrames * 0.45));
-      const e = s + 4 + Math.floor(Math.random() * (totalFrames * 0.55));
+      const s = Math.floor(Math.random() * (totalFrames * 0.35));
+      const e = s + 3 + Math.floor(Math.random() * (totalFrames * 0.45));
       starts.push(s);
       ends.push(e);
     }
@@ -94,8 +92,10 @@ const scrambleMorph = (
         resolve('aborted');
         return;
       }
+      const progress = frame / totalFrames;
+      const curLen = Math.floor(from.length + (to.length - from.length) * progress);
       let out = '';
-      for (let i = 0; i < maxLen; i++) {
+      for (let i = 0; i < curLen; i++) {
         if (frame < starts[i]) {
           if (i < from.length) out += from[i];
         } else if (frame < ends[i]) {
@@ -104,10 +104,9 @@ const scrambleMorph = (
           if (i < to.length) out += to[i];
         }
       }
-      // trim trailing undefined gaps (when to shorter)
       setText(out);
       frame++;
-      if (frame > totalFrames + 6) {
+      if (frame > totalFrames + 4) {
         clearInterval(id);
         setText(to);
         resolve('done');
@@ -307,6 +306,7 @@ export default function App() {
         signal: controller.signal,
         body: JSON.stringify({
           model,
+          thinking: false,
           messages: [
             { role: 'system', content: PERSONA_SYSTEM_PROMPTS[kind] },
             {
@@ -349,24 +349,14 @@ export default function App() {
         if (!out) continue;
         if (firstChunk) {
           firstChunk = false;
-          if (fromText && !dissolveDone) {
-            dissolveCtrl.abort();
-            // morph scrambled residue into the first streamed chunk
-            await scrambleMorph(lastScrambled, out.trim(), setText, 420, morphCtrl.signal);
-            if (morphCtrl.signal.aborted || controller.signal.aborted) break;
-            morphed = true;
-          } else {
-            setText(out.trim());
-          }
+          dissolveCtrl.abort();
+          // morph whatever is on screen (scrambled residue or empty) into the first chunk
+          await scrambleMorph(lastScrambled, out.trim(), setText, 420, morphCtrl.signal);
+          if (morphCtrl.signal.aborted || controller.signal.aborted) break;
+          morphed = true;
         } else {
-          // after first morph, stream directly
           setText(out.trim());
         }
-      }
-      // Edge: dissolve finished before any chunk arrived — out already set above on firstChunk path
-      // If fetch returned empty (should not), ensure we don't leave box empty
-      if (!out.trim() && !controller.signal.aborted) {
-        dissolveCtrl.abort();
       }
     } catch (e: any) {
       if (e?.name === 'AbortError') {
