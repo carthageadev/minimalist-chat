@@ -116,6 +116,16 @@ export default function App() {
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [lagunaThinking, setLagunaThinking] = useState<boolean>(() => localStorage.getItem('laguna-thinking') !== '0');
   const [rpMode, setRpMode] = useState<boolean>(false);
+  const [rpReveal, setRpReveal] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!rpMode) return;
+    setRpReveal(true);
+    const t = setTimeout(() => setRpReveal(false), 5000);
+    return () => clearTimeout(t);
+  }, [rpMode]);
+
+  const showRpRing = rpMode && (rpReveal || isLoading || isStreaming);
   const [showSetup, setShowSetup] = useState(false);
   const [userPersona, setUserPersona] = useState<string>(() => localStorage.getItem('rp-user-persona') || '');
   const [charPersona, setCharPersona] = useState<string>(() => localStorage.getItem('rp-char-persona') || '');
@@ -790,7 +800,20 @@ export default function App() {
             )}
           </AnimatePresence>
 
-          <motion.form layout onSubmit={handleSubmit} className={`relative group w-full flex items-center pointer-events-auto ${rpMode ? 'rp-active' : ''}`}>
+          <motion.form layout onSubmit={handleSubmit} className="relative group w-full flex items-center pointer-events-auto">
+            <AnimatePresence>
+              {showRpRing && (
+                <motion.span
+                  key="rp-ring"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 1.2, ease: 'easeInOut' }}
+                  aria-hidden
+                  className="rp-ring pointer-events-none absolute -inset-px z-10"
+                />
+              )}
+            </AnimatePresence>
             <textarea
               id="chat-input"
               value={input}
