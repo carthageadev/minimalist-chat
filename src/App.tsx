@@ -44,8 +44,8 @@ const scrambleDissolve = (
       }
       frame++;
       const progress = frame / totalFrames;
-      // Length shrinks monotonically — never grows beyond original
-      const curLen = Math.max(0, Math.ceil(len * (1 - progress) + (Math.random() - 0.5) * 0.8));
+      const eased = progress * progress; // easeIn — slow start, faster finish
+      const curLen = Math.max(0, Math.ceil(len * (1 - eased) + (Math.random() - 0.5) * 0.6));
       let out = '';
       for (let i = 0; i < curLen; i++) {
         const p = progress + (Math.random() - 0.5) * 0.2;
@@ -93,7 +93,8 @@ const scrambleMorph = (
         return;
       }
       const progress = frame / totalFrames;
-      const curLen = Math.floor(from.length + (to.length - from.length) * progress);
+      const eased = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2; // easeInOut
+      const curLen = Math.floor(from.length + (to.length - from.length) * eased);
       let out = '';
       for (let i = 0; i < curLen; i++) {
         if (frame < starts[i]) {
