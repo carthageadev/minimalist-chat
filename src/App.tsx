@@ -23,6 +23,102 @@ const decrypt = (blob: string | null) => {
 };
 const store = (key: string, value: string) => localStorage.setItem(key, encrypt(value));
 
+const SCRAMBLE_CHARS = '!<>-_\\/[]{}—=+*^?#________ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+const scrambleDissolve = (
+  from: string,
+  setText: (v: string) => void,
+  duration: number,
+  signal: AbortSignal,
+  onLast: (v: string) => void,
+) =>
+  new Promise<'done' | 'aborted'>((resolve) => {
+    const totalFrames = Math.max(1, Math.floor(duration / 16));
+    let frame = 0;
+    let last = from;
+    const len = from.length;
+    const id = setInterval(() => {
+      if (signal.aborted) {
+        clearInterval(id);
+        resolve('aborted');
+        return;
+      }
+      frame++;
+      const progress = frame / totalFrames;
+      let out = '';
+      for (let i = 0; i < len; i++) {
+        const jitter = (Math.random() - 0.5) * 0.3;
+        const p = progress + jitter + (i / len) * 0.15;
+        if (p > 0.72) continue;
+        if (p > 0.28) out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+        else out += from[i];
+      }
+      last = out;
+      onLast(out);
+      setText(out);
+      if (frame >= totalFrames) {
+        clearInterval(id);
+        setText('');
+        onLast('');
+        resolve('done');
+      }
+    }, 16);
+    signal.addEventListener('abort', () => {
+      clearInterval(id);
+      resolve('aborted');
+    });
+  });
+
+const scrambleMorph = (
+  from: string,
+  to: string,
+  setText: (v: string) => void,
+  duration: number,
+  signal: AbortSignal,
+) =>
+  new Promise<'done' | 'aborted'>((resolve) => {
+    const totalFrames = Math.max(1, Math.floor(duration / 16));
+    const maxLen = Math.max(from.length, to.length);
+    const starts: number[] = [];
+    const ends: number[] = [];
+    for (let i = 0; i < maxLen; i++) {
+      const s = Math.floor(Math.random() * (totalFrames * 0.45));
+      const e = s + 4 + Math.floor(Math.random() * (totalFrames * 0.55));
+      starts.push(s);
+      ends.push(e);
+    }
+    let frame = 0;
+    const id = setInterval(() => {
+      if (signal.aborted) {
+        clearInterval(id);
+        resolve('aborted');
+        return;
+      }
+      let out = '';
+      for (let i = 0; i < maxLen; i++) {
+        if (frame < starts[i]) {
+          if (i < from.length) out += from[i];
+        } else if (frame < ends[i]) {
+          out += SCRAMBLE_CHARS[Math.floor(Math.random() * SCRAMBLE_CHARS.length)];
+        } else {
+          if (i < to.length) out += to[i];
+        }
+      }
+      // trim trailing undefined gaps (when to shorter)
+      setText(out);
+      frame++;
+      if (frame > totalFrames + 6) {
+        clearInterval(id);
+        setText(to);
+        resolve('done');
+      }
+    }, 16);
+    signal.addEventListener('abort', () => {
+      clearInterval(id);
+      resolve('aborted');
+    });
+  });
+
 const PERSONA_SYSTEM_PROMPTS: Record<'user' | 'char', string> = {
   user: `You are a master character writer for immersive, realistic text roleplays. Write a vivid persona description for "{{user}}" — the user's character. Include: full name, rough age, appearance, personality traits, a hint of backstory, and what makes them compelling. Third-person prose, under 150 words, no markdown, no lists. Output ONLY the description itself.`,
   char: `You are a master character-card writer for immersive AI roleplays (SillyTavern-style cards). Write a rich definition for "{{char}}" — the AI's roleplay character. Include: full name, appearance, personality, backstory, distinct speech style and quirks, and how {{char}} tends to relate to {{user}}. Third-person prose, under 220 words, no markdown, no lists. Output ONLY the description itself.`,
@@ -179,6 +275,7 @@ export default function App() {
     const isActive = kind === 'user' ? genUser : genChar;
     const abortRef = kind === 'user' ? userAbortRef : charAbortRef;
     const setGen = kind === 'user' ? setGenUser : setGenChar;
+    const setText = kind === 'user' ? setUserPersona : setCharPersona;
     if (isActive) {
       abortRef.current?.abort();
       return;
@@ -186,7 +283,23 @@ export default function App() {
     setGen(true);
     const controller = new AbortController();
     abortRef.current = controller;
-    const current = (kind === 'user' ? userPersona : charPersona).trim();
+    const fromText = kind === 'user' ? userPersona : charPersona;
+    const current = fromText.trim();
+
+    // Scramble dissolve of the old text
+    const dissolveCtrl = new AbortController();
+    let lastScrambled = fromText;
+    let dissolveDone = false;
+    if (fromText) {
+      scrambleDissolve(fromText, setText, 520, dissolveCtrl.signal, (v) => { lastScrambled = v; }).then((r) => {
+        if (r === 'done') dissolveDone = true;
+      });
+    } else {
+      setText('');
+    }
+    // Link dissolve abort to main abort
+    controller.signal.addEventListener('abort', () => dissolveCtrl.abort());
+
     try {
       const resp = await fetch('/api/chat', {
         method: 'POST',
@@ -205,14 +318,20 @@ export default function App() {
           ],
         }),
       });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const reader = resp.body?.getReader();
-      if (!reader) return;
+      if (!reader) throw new Error('No reader');
       const decoder = new TextDecoder();
       let buffer = '';
       let out = '';
+      let firstChunk = true;
+      let morphed = false;
+      const morphCtrl = new AbortController();
+      controller.signal.addEventListener('abort', () => morphCtrl.abort());
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
+        if (controller.signal.aborted) break;
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
@@ -222,18 +341,44 @@ export default function App() {
             if (dataStr === '[DONE]') continue;
             try {
               const data = JSON.parse(dataStr);
+              if (data.error) throw new Error(data.error);
               if (data.content) out += data.content;
             } catch (e) {}
           }
         }
-        if (controller.signal.aborted) break;
-        if (kind === 'user') setUserPersona(out.trim());
-        else setCharPersona(out.trim());
+        if (!out) continue;
+        if (firstChunk) {
+          firstChunk = false;
+          if (fromText && !dissolveDone) {
+            dissolveCtrl.abort();
+            // morph scrambled residue into the first streamed chunk
+            await scrambleMorph(lastScrambled, out.trim(), setText, 420, morphCtrl.signal);
+            if (morphCtrl.signal.aborted || controller.signal.aborted) break;
+            morphed = true;
+          } else {
+            setText(out.trim());
+          }
+        } else {
+          // after first morph, stream directly
+          setText(out.trim());
+        }
+      }
+      // Edge: dissolve finished before any chunk arrived — out already set above on firstChunk path
+      // If fetch returned empty (should not), ensure we don't leave box empty
+      if (!out.trim() && !controller.signal.aborted) {
+        dissolveCtrl.abort();
       }
     } catch (e: any) {
-      if (e?.name === 'AbortError') return;
+      if (e?.name === 'AbortError') {
+        // cancelled mid-scramble — revert to original so box isn't left half-scrambled
+        if (!dissolveDone) setText(fromText);
+        return;
+      }
       console.error('Generate failed:', e);
+      // on error, restore original text if we dissolved away
+      if (fromText && !dissolveDone) setText(fromText);
     } finally {
+      dissolveCtrl.abort();
       if (abortRef.current === controller) abortRef.current = null;
       setGen(false);
     }
@@ -680,6 +825,7 @@ export default function App() {
               <textarea
                 value={userPersona}
                 onChange={(e) => setUserPersona(e.target.value)}
+                readOnly={genUser}
                 placeholder="Who is the user in this story? Name, appearance, personality..."
                 className={`persona-box w-full h-24 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${genUser ? 'persona-glow' : ''}`}
               />
@@ -700,6 +846,7 @@ export default function App() {
               <textarea
                 value={charPersona}
                 onChange={(e) => setCharPersona(e.target.value)}
+                readOnly={genChar}
                 placeholder="Define your character — name, personality, appearance, how they speak and act..."
                 className={`persona-box w-full h-32 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${genChar ? 'persona-glow' : ''}`}
               />
