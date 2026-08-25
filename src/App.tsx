@@ -806,9 +806,8 @@ export default function App() {
                 <motion.span
                   key="rp-ring"
                   initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 1.2, ease: 'easeInOut' }}
+                  animate={{ opacity: 1, transition: { duration: 0.6, ease: 'easeOut' } }}
+                  exit={{ opacity: 0, transition: { duration: 1, ease: 'easeInOut' } }}
                   aria-hidden
                   className="rp-ring pointer-events-none absolute -inset-px z-10"
                 />
