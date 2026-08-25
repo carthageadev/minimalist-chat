@@ -188,7 +188,7 @@ body.app-fading {
    Mounted briefly when RP activates (5s reveal) and while the LLM is generating.
    Opacity is owned by framer-motion (fade in/out); CSS only sweeps the gradient. */
 .rp-ring {
-    border-radius: 4px;
+    border-radius: 2px; /* matches textarea rounded-sm exactly — concentric corners */
     padding: 1px;
     background: linear-gradient(110deg, transparent 20%, #d946ef 40%, #f5d0fe 50%, #c026d3 60%, transparent 80%);
     background-size: 200% 100%;

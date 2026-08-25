@@ -1145,7 +1145,7 @@ export default function App() {
                   animate={{ opacity: 1, transition: { duration: 0.6, ease: 'easeOut' } }}
                   exit={{ opacity: 0, transition: { duration: 1, ease: 'easeInOut' } }}
                   aria-hidden
-                  className="rp-ring pointer-events-none absolute -inset-px z-10"
+                  className="rp-ring pointer-events-none absolute inset-0 z-10"
                 />
               )}
             </AnimatePresence>
