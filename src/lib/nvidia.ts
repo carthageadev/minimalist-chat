@@ -1,15 +1,16 @@
+/// <reference types="vite/client" />
+
 export type Role = 'user' | 'assistant' | 'system';
 export interface ChatMessage {
   role: Role;
   content: string;
 }
 
-export interface KeyInfo {
-  apiKey: string;
-  baseUrl: string;
-}
+// Single NVIDIA key + base URL, injected at build time via Vite env.
+export const API_KEY = (import.meta.env.VITE_API_KEY as string) || '';
+export const BASE_URL = (import.meta.env.VITE_BASE_URL as string) || '';
 
-// ---- System prompts (single source of truth, shared with old server) ----
+// ---- System prompts ----
 
 const baseSystemPrompt = `Today's date is ${new Date().toISOString().split('T')[0]}. Be bold, forward-thinking, and highly agentic. Aggressively auto-correct and decipher any user typos or misspellings (e.g., understand "doanld rump" as "Donald Trump" without mentioning the typo). Assume the user's underlying intent based on context and immediately provide useful answers. Do NOT ask excessive follow-up questions—take the initiative, make reasonable assumptions, and get things done. You have access to a web search tool. To use it, output EXACTLY the following format: [SEARCH: your search query here] and stop right away. The user will automatically reply with the search results, and then you can formulate your final answer based on the results.`;
 
@@ -32,25 +33,7 @@ Character control rules (strict):
 - NEVER speak, act, think, or decide anything on behalf of {{user}}.
 - Never write {{user}}'s dialogue or actions; always leave room for them to respond.`;
 
-// ---- Key resolution (client-side cache of the runtime key endpoint) ----
-
-let keyCache: Record<string, KeyInfo> = {};
-
-export async function getKey(model: string, force = false): Promise<KeyInfo> {
-  const cacheKey = model.startsWith('minimaxai/') ? 'minimax' : 'default';
-  if (!force && keyCache[cacheKey]) return keyCache[cacheKey];
-  const r = await fetch(`/api/key?model=${encodeURIComponent(model)}`);
-  if (!r.ok) throw new Error(`HTTP ${r.status} — failed to fetch API key`);
-  const info = (await r.json()) as KeyInfo;
-  keyCache[cacheKey] = info;
-  return info;
-}
-
-export function clearKeyCache() {
-  keyCache = {};
-}
-
-// ---- Request body builder (mirrors the previous backend logic) ----
+// ---- Request body builder ----
 
 export function buildRequestBody(opts: {
   messages: ChatMessage[];
@@ -94,8 +77,7 @@ export function buildRequestBody(opts: {
 
   if (model.startsWith('minimaxai/')) {
     // NOTE: do NOT send chat_template_kwargs here — NVIDIA's hosted minimax-m3
-    // rejects it with a 429. Smaller max_tokens avoids token-capacity 429s, but
-    // the user asked for 16k, so honour that.
+    // rejects it with a 429 (it routes to a contended variant).
     body.temperature = 1;
     body.top_p = 0.95;
     body.max_tokens = 16000;
@@ -120,12 +102,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function streamChat(opts: {
   body: Record<string, unknown>;
-  apiKey: string;
-  baseUrl: string;
   signal?: AbortSignal;
   cb: StreamCallbacks;
 }): Promise<void> {
-  const { body, apiKey, baseUrl, signal, cb } = opts;
+  const { body, signal, cb } = opts;
 
   const MAX_TRIES = 3;
   let res: Response | null = null;
@@ -134,9 +114,9 @@ export async function streamChat(opts: {
   for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
     if (attempt > 0) await sleep(2500 * attempt);
     try {
-      res = await fetch(`${baseUrl}/chat/completions`, {
+      res = await fetch(`${BASE_URL}/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
         body: JSON.stringify(body),
         signal,
       });

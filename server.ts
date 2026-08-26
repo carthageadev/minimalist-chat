@@ -6,18 +6,9 @@ const PORT = Number(process.env.PORT) || 3000;
 
 async function startServer() {
   const app = express();
-  app.use(express.json({ limit: "50mb" }));
 
-  // The browser now calls NVIDIA directly. This endpoint only hands the
-  // client the (per-model) API key at runtime so it never ships in the
-  // built bundle.
-  app.get("/api/key", (req, res) => {
-    const model = String((req.query as any).model || "");
-    const apiKey = model.startsWith("minimaxai/")
-      ? process.env.MINIMAX_API_KEY || process.env.API_KEY!
-      : process.env.API_KEY!;
-    res.json({ apiKey, baseUrl: process.env.BASE_URL! });
-  });
+  // The browser calls NVIDIA directly using VITE_API_KEY / VITE_BASE_URL
+  // (baked in at build time). This server only serves the app in dev.
 
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

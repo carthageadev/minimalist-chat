@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { motion, AnimatePresence } from 'motion/react';
-import { getKey, buildRequestBody, streamChat } from './lib/nvidia';
+import { buildRequestBody, streamChat } from './lib/nvidia';
 
 type Role = 'user' | 'assistant' | 'system';
 
@@ -311,7 +311,6 @@ export default function App() {
 
     const fetchPromise = (async () => {
       try {
-        const keyInfo = await getKey(model);
         const body = buildRequestBody({
           messages: [
             { role: 'system', content: PERSONA_SYSTEM_PROMPTS[kind] },
@@ -329,8 +328,6 @@ export default function App() {
         });
         await streamChat({
           body,
-          apiKey: keyInfo.apiKey,
-          baseUrl: keyInfo.baseUrl,
           signal: controller.signal,
           cb: {
             onContent: (t) => { pendingOut += t; },
@@ -483,7 +480,6 @@ export default function App() {
     setIsStreaming(false);
     
     try {
-      const keyInfo = await getKey(model);
       const body = buildRequestBody({
         messages: currentMessages,
         model,
@@ -517,8 +513,6 @@ export default function App() {
 
       await streamChat({
         body,
-        apiKey: keyInfo.apiKey,
-        baseUrl: keyInfo.baseUrl,
         signal: controller.signal,
         cb: {
           onReasoning: (t) => { ensureStarted(); accum.reasoning += t; patchLast(); },
