@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Send, Lock, Terminal, Maximize, Minimize, X, Square, Check, Brain, Sparkles } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -419,6 +419,13 @@ export default function App() {
   const autoScrollRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
+  // Phones/tablets (coarse pointer) get ChatGPT-mobile behaviour: the keyboard
+  // Enter key inserts a newline, and only the on-screen Send button sends.
+  const isMobile = useMemo(
+    () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches,
+    [],
+  );
+
   useEffect(() => {
     // Fade the live DOM to black ourselves, then reload — no VT handoff hitch.
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -620,7 +627,9 @@ export default function App() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // On desktop: Enter sends, Shift+Enter = newline. On mobile/touch: Enter is
+    // a newline (let the default happen); sending is done via the Send button.
+    if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
       e.preventDefault();
       handleSubmit(e as unknown as React.FormEvent);
     }
