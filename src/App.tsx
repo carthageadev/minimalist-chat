@@ -415,6 +415,8 @@ export default function App() {
 
   const selectedLabel = MODELS.find((m) => m.id === model)?.label ?? model;
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const autoScrollRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -447,13 +449,25 @@ export default function App() {
     setIsStreaming(false);
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const isNearBottom = (el: HTMLElement) => {
+    const threshold = 60; // px from bottom still counts as "at bottom"
+    return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
+  };
+
+  const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+  };
+
+  // ChatGPT-style: follow the stream, but release the moment the user scrolls
+  // up. Re-engage automatically once they're back near the bottom.
+  const handleScroll = () => {
+    const el = scrollContainerRef.current;
+    if (el) autoScrollRef.current = isNearBottom(el);
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
+    if (autoScrollRef.current) scrollToBottom('auto');
+  }, [messages, isLoading, isStreaming]);
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -478,6 +492,11 @@ export default function App() {
     abortControllerRef.current?.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
+
+    // A new exchange always re-engages the bottom-follow (even if the user had
+    // scrolled up during the previous one).
+    autoScrollRef.current = true;
+    scrollToBottom('smooth');
 
     setIsLoading(true);
     setIsStreaming(false);
@@ -888,7 +907,11 @@ export default function App() {
       <main className="flex-1 min-h-0 w-full max-w-3xl mx-auto px-6 flex flex-col relative transition-all duration-700">
         
         {messages.length > 0 && (
-          <div className="absolute inset-x-0 inset-y-0 overflow-y-auto hide-scrollbar scroll-smooth pt-[calc(7rem+env(safe-area-inset-top))] pb-48 px-6 space-y-12">
+          <div
+            ref={scrollContainerRef}
+            onScroll={handleScroll}
+            className="absolute inset-x-0 inset-y-0 overflow-y-auto hide-scrollbar scroll-smooth pt-[calc(7rem+env(safe-area-inset-top))] pb-48 px-6 space-y-12"
+          >
             <AnimatePresence initial={false}>
               {messages.map((msg, idx) => {
                 if (msg.content.startsWith('[SEARCH RESULTS for ')) {
