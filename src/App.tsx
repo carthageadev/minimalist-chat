@@ -159,6 +159,7 @@ const MODELS = [
   { id: 'poolside/laguna-xs-2.1', label: 'Laguna XS 2.1' },
   { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B' },
   { id: 'minimaxai/minimax-m3', label: 'MiniMax M3' },
+  { id: 'Lorbus/Qwen3.6-27B-int4-AutoRound', label: 'Hermes Qwen 27B', baseUrl: 'https://hermes.ai.unturf.com/v1', splitThink: true },
 ];
 
 interface Message {
@@ -328,6 +329,8 @@ export default function App() {
         });
         await streamChat({
           body,
+          baseUrl: (MODELS.find((m) => m.id === model) as any)?.baseUrl,
+          splitThink: !!(MODELS.find((m) => m.id === model) as any)?.splitThink,
           signal: controller.signal,
           cb: {
             onContent: (t) => { pendingOut += t; },
@@ -513,6 +516,8 @@ export default function App() {
 
       await streamChat({
         body,
+        baseUrl: MODELS.find((m) => m.id === model)?.baseUrl,
+        splitThink: !!(MODELS.find((m) => m.id === model) as any)?.splitThink,
         signal: controller.signal,
         cb: {
           onReasoning: (t) => { ensureStarted(); accum.reasoning += t; patchLast(); },

@@ -83,6 +83,12 @@ export function buildRequestBody(opts: {
     body.max_tokens = 16000;
   }
 
+  if (model.startsWith('Lorbus/')) {
+    // Hermes thinks at length inside content before answering (and sometimes
+    // loops) — give it plenty of room so the reply isn't cut off mid-thought.
+    body.max_tokens = 16000;
+  }
+
   if (rp) {
     body.temperature = 1;
   }
@@ -102,10 +108,13 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export async function streamChat(opts: {
   body: Record<string, unknown>;
+  baseUrl?: string;
+  splitThink?: boolean;
   signal?: AbortSignal;
   cb: StreamCallbacks;
 }): Promise<void> {
   const { body, signal, cb } = opts;
+  const baseUrl = opts.baseUrl || BASE_URL;
 
   const MAX_TRIES = 3;
   let res: Response | null = null;
@@ -114,7 +123,7 @@ export async function streamChat(opts: {
   for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
     if (attempt > 0) await sleep(2500 * attempt);
     try {
-      res = await fetch(`${BASE_URL}/chat/completions`, {
+      res = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
         body: JSON.stringify(body),
@@ -147,27 +156,74 @@ export async function streamChat(opts: {
   const decoder = new TextDecoder();
   let buffer = '';
 
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split('\n');
-    buffer = lines.pop() || '';
-    for (const line of lines) {
-      if (!line.startsWith('data: ')) continue;
-      const dataStr = line.slice(6).trim();
-      if (dataStr === '[DONE]') continue;
-      try {
-        const data = JSON.parse(dataStr);
-        if (data.error) {
-          cb.onError?.(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
-          return;
+  // Hermes/Qwen splitter — the model always opens with its chain of thought
+  // in plain content and ends it with a triple newline before the real reply.
+  // So: start in reasoning mode, stream into the reasoning panel, and the
+  // first \n\n\n flips everything after to normal content. Simple.
+  let mode: 'thinking' | 'content' = opts.splitThink ? 'thinking' : 'content';
+  let tailHold = '';
+  const flushTailAsContent = () => {
+    if (tailHold) { cb.onContent?.(tailHold); tailHold = ''; }
+  };
+  const feed = (text: string) => {
+    if (mode === 'content') { cb.onContent?.(text); return; }
+    tailHold += text;
+    const idx = tailHold.indexOf('\n\n\n');
+    if (idx !== -1) {
+      const reasoningPart = tailHold.slice(0, idx);
+      const rest = tailHold.slice(idx + 3);
+      if (reasoningPart) cb.onReasoning?.(reasoningPart);
+      mode = 'content';
+      if (rest) cb.onContent?.(rest);
+      tailHold = '';
+      return;
+    }
+    // hold back a possibly-partial separator at the end
+    let keep = 0;
+    if (tailHold.endsWith('\n\n')) keep = 2;
+    else if (tailHold.endsWith('\n')) keep = 1;
+    const emitLen = tailHold.length - keep;
+    if (emitLen > 0) {
+      cb.onReasoning?.(tailHold.slice(0, emitLen));
+      tailHold = tailHold.slice(emitLen);
+    }
+  };
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() || '';
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const dataStr = line.slice(6).trim();
+        if (dataStr === '[DONE]') continue;
+        try {
+          const data = JSON.parse(dataStr);
+          if (data.error) {
+            flushTailAsContent();
+            cb.onError?.(typeof data.error === 'string' ? data.error : JSON.stringify(data.error));
+            return;
+          }
+          // Raw upstream SSE nests fields under choices[0].delta
+          const delta = data.choices?.[0]?.delta || {};
+          const reasoning = delta.reasoning_content ?? delta.reasoning ?? data.reasoning;
+          const content = delta.content ?? data.content;
+          if (reasoning) cb.onReasoning?.(reasoning);
+          if (content) feed(content);
+        } catch {
+          // ignore partial JSON
         }
-        if (data.reasoning) cb.onReasoning?.(data.reasoning);
-        if (data.content) cb.onContent?.(data.content);
-      } catch {
-        // ignore partial JSON
       }
     }
+    // stream ended — flush whatever the splitter was holding.
+    // Still in thinking mode means the separator never arrived (truncated
+    // response) — show what we have as content so nothing is silently lost.
+    flushTailAsContent();
+  } catch (e) {
+    flushTailAsContent();
+    throw e;
   }
 }
