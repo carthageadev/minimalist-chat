@@ -109,10 +109,21 @@ Character control rules (strict):
       res.end();
     } catch (error: any) {
       console.error("Error calling inference API:", error);
+      const status = typeof error?.status === "number" && error.status >= 400 ? error.status : 500;
+      const rawMessage =
+        (typeof error?.error?.message === "string" && error.error.message) ||
+        (typeof error?.message === "string" && error.message) ||
+        "";
+      const message =
+        rawMessage && !/no body/i.test(rawMessage)
+          ? rawMessage
+          : status === 429
+            ? "Rate limit exceeded. Please retry shortly."
+            : "Failed to get a response from the AI.";
       if (!res.headersSent) {
-        res.status(500).json({ error: error.message || "Failed to get a response from the AI." });
+        res.status(status).json({ error: message });
       } else {
-        res.write(`data: ${JSON.stringify({ error: error.message || "Server Error" })}\n\n`);
+        res.write(`data: ${JSON.stringify({ error: message })}\n\n`);
         res.end();
       }
     }

@@ -121,8 +121,19 @@ Character control rules (strict):
 
   } catch (error: any) {
     console.error("Error calling inference API:", error);
-    return new Response(JSON.stringify({ error: error.message || "Failed to get a response from the AI." }), {
-      status: 500,
+    const status = typeof error?.status === "number" && error.status >= 400 ? error.status : 500;
+    const rawMessage =
+      (typeof error?.error?.message === "string" && error.error.message) ||
+      (typeof error?.message === "string" && error.message) ||
+      "";
+    const message =
+      rawMessage && !/no body/i.test(rawMessage)
+        ? rawMessage
+        : status === 429
+          ? "Rate limit exceeded. Please retry shortly."
+          : "Failed to get a response from the AI.";
+    return new Response(JSON.stringify({ error: message }), {
+      status,
       headers: { 'Content-Type': 'application/json' }
     });
   }
