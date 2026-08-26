@@ -67,7 +67,7 @@ export function buildRequestBody(opts: {
     model,
     messages: formattedMessages,
     temperature: 0.5,
-    max_tokens: 1500,
+    max_tokens: 32000, // all our models support it
     stream: true,
   };
 
@@ -80,13 +80,6 @@ export function buildRequestBody(opts: {
     // rejects it with a 429 (it routes to a contended variant).
     body.temperature = 1;
     body.top_p = 0.95;
-    body.max_tokens = 16000;
-  }
-
-  if (model.startsWith('Lorbus/')) {
-    // Hermes thinks at length inside content before answering (and sometimes
-    // loops) — give it plenty of room so the reply isn't cut off mid-thought.
-    body.max_tokens = 16000;
   }
 
   if (rp) {
