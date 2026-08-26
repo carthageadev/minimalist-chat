@@ -6,9 +6,10 @@ export interface ChatMessage {
   content: string;
 }
 
-// Single NVIDIA key + base URL, injected at build time via Vite env.
+// The only secret is the API key (Vite env). URLs are public constants —
+// baked into the code so a missing env var can never break deployment.
 export const API_KEY = (import.meta.env.VITE_API_KEY as string) || '';
-export const BASE_URL = (import.meta.env.VITE_BASE_URL as string) || '';
+export const BASE_URL = 'https://integrate.api.nvidia.com/v1';
 
 // ---- System prompts ----
 
