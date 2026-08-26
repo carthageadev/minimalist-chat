@@ -91,20 +91,63 @@ Character control rules (strict):
       requestBody.temperature = 1;
     }
 
-    const stream = await (client.chat.completions.create(requestBody as any) as Promise<any>);
+    const createUpstreamStream = async () =>
+      client.chat.completions.create(requestBody as any) as Promise<any>;
+
+    // Call the upstream API BEFORE opening our SSE stream, so upstream
+    // failures (rate limits, invalid params) reach the client as real
+    // HTTP statuses instead of an artificial 200 stream.
+    let stream: any;
+    try {
+      stream = await createUpstreamStream();
+    } catch (err: any) {
+      // One transparent retry on rate limit
+      if (Number(err?.status) === 429) {
+        await new Promise((r) => setTimeout(r, 1500));
+        try {
+          stream = await createUpstreamStream();
+        } catch (retryErr: any) {
+          console.error("Error calling inference API:", retryErr);
+          const rStatus = Number(retryErr?.status);
+          return new Response(JSON.stringify({
+            error: retryErr?.error?.detail || retryErr?.message || "Failed to get a response from the AI.",
+          }), {
+            status: rStatus >= 400 && rStatus < 600 ? rStatus : 502,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+      } else {
+        console.error("Error calling inference API:", err);
+        const status = Number(err?.status);
+        return new Response(JSON.stringify({
+          error: err?.error?.detail || err?.message || "Failed to get a response from the AI.",
+        }), {
+          status: status >= 400 && status < 600 ? status : 502,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     const readableStream = new ReadableStream({
       async start(controller) {
-        for await (const chunk of stream) {
-          const delta: any = chunk.choices[0]?.delta;
-          const reasoning = delta?.reasoning_content || "";
-          if (reasoning) {
-            controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ reasoning })}\n\n`));
+        try {
+          for await (const chunk of stream) {
+            const delta: any = chunk.choices[0]?.delta;
+            const reasoning = delta?.reasoning_content || "";
+            if (reasoning) {
+              controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ reasoning })}\n\n`));
+            }
+            const content = delta?.content || "";
+            if (content) {
+              controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`));
+            }
           }
-          const content = delta?.content || "";
-          if (content) {
-            controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ content })}\n\n`));
-          }
+        } catch (streamErr: any) {
+          const sStatus = Number(streamErr?.status);
+          const msg = sStatus
+            ? `${sStatus} — ${streamErr?.error?.detail || streamErr?.message || "stream failed"}`
+            : streamErr?.message || "stream failed";
+          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ error: msg })}\n\n`));
         }
         controller.enqueue(new TextEncoder().encode("data: [DONE]\n\n"));
         controller.close();

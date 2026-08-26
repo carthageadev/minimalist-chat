@@ -517,7 +517,8 @@ export default function App() {
         let errMsg = `HTTP ${response.status}`;
         try {
           const j = await response.json();
-          if (j?.error) errMsg = `${response.status} — ${j.error}`;
+          const detail = j?.error || (typeof j?.detail === 'string' ? j.detail : null);
+          if (detail) errMsg = `${response.status} — ${detail}`;
         } catch (e) {}
         throw new Error(errMsg);
       }

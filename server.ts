@@ -63,11 +63,6 @@ Character control rules (strict):
 
       const formattedMessages = isPersona ? messages : [{ role: "system", content: systemContent }, ...messages];
 
-      res.setHeader("Content-Type", "text/event-stream");
-      res.setHeader("Cache-Control", "no-cache");
-      res.setHeader("Connection", "keep-alive");
-      res.flushHeaders();
-
       const requestBody: Record<string, unknown> = {
         model: selectedModel,
         messages: formattedMessages,
@@ -91,18 +86,60 @@ Character control rules (strict):
         requestBody.temperature = 1;
       }
 
-      const stream = await (client.chat.completions.create(requestBody as any) as Promise<any>);
+      const createUpstreamStream = async () =>
+        client.chat.completions.create(requestBody as any) as Promise<any>;
 
-      for await (const chunk of stream) {
-        const delta: any = chunk.choices[0]?.delta;
-        const reasoning = delta?.reasoning_content || "";
-        if (reasoning) {
-          res.write(`data: ${JSON.stringify({ reasoning })}\n\n`);
+      // Call the upstream API BEFORE opening our SSE stream, so upstream
+      // failures (rate limits, invalid params) reach the client as real
+      // HTTP statuses instead of an artificial 200 stream.
+      let stream: any;
+      try {
+        stream = await createUpstreamStream();
+      } catch (err: any) {
+        // One transparent retry on rate limit
+        if (Number(err?.status) === 429) {
+          await new Promise((r) => setTimeout(r, 1500));
+          try {
+            stream = await createUpstreamStream();
+          } catch (retryErr: any) {
+            console.error("Error calling inference API:", retryErr);
+            const rStatus = Number(retryErr?.status);
+            return res.status(rStatus >= 400 && rStatus < 600 ? rStatus : 502).json({
+              error: retryErr?.error?.detail || retryErr?.message || "Failed to get a response from the AI.",
+            });
+          }
+        } else {
+          console.error("Error calling inference API:", err);
+          const status = Number(err?.status);
+          return res.status(status >= 400 && status < 600 ? status : 502).json({
+            error: err?.error?.detail || err?.message || "Failed to get a response from the AI.",
+          });
         }
-        const content = delta?.content || "";
-        if (content) {
-          res.write(`data: ${JSON.stringify({ content })}\n\n`);
+      }
+
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.flushHeaders();
+
+      try {
+        for await (const chunk of stream) {
+          const delta: any = chunk.choices[0]?.delta;
+          const reasoning = delta?.reasoning_content || "";
+          if (reasoning) {
+            res.write(`data: ${JSON.stringify({ reasoning })}\n\n`);
+          }
+          const content = delta?.content || "";
+          if (content) {
+            res.write(`data: ${JSON.stringify({ content })}\n\n`);
+          }
         }
+      } catch (streamErr: any) {
+        const sStatus = Number(streamErr?.status);
+        const msg = sStatus
+          ? `${sStatus} — ${streamErr?.error?.detail || streamErr?.message || "stream failed"}`
+          : streamErr?.message || "stream failed";
+        res.write(`data: ${JSON.stringify({ error: msg })}\n\n`);
       }
 
       res.write("data: [DONE]\n\n");
