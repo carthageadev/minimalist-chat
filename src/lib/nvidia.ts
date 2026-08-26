@@ -117,10 +117,14 @@ export async function streamChat(opts: {
   for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
     if (attempt > 0) await sleep(2500 * attempt);
     try {
-      res = await fetch(`${baseUrl}/chat/completions`, {
+      // NVIDIA's API sends no CORS preflight headers, so the browser can't call
+      // it directly. Route every model through our same-origin /api/chat proxy
+      // (Hermes has proper CORS but uses the same path for uniformity). The proxy
+      // injects the key server-side, so it never ships in the public bundle.
+      res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${API_KEY}` },
-        body: JSON.stringify(body),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ upstream: `${baseUrl}/chat/completions`, payload: body }),
         signal,
       });
       if (res.ok) break;

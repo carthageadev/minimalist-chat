@@ -17,5 +17,6 @@
     "jsx": "react-jsx",
     "allowImportingTsExtensions": true,
     "noEmit": true
-  }
+  },
+  "exclude": ["api", "server.ts", "node_modules", "dist"]
 }
