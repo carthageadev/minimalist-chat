@@ -5,6 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { motion, AnimatePresence } from 'motion/react';
+import { getKey, buildRequestBody, streamChat } from './lib/nvidia';
 
 type Role = 'user' | 'assistant' | 'system';
 
@@ -310,49 +311,32 @@ export default function App() {
 
     const fetchPromise = (async () => {
       try {
-        const resp = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: controller.signal,
-          body: JSON.stringify({
-            model,
-            thinking: false,
-            isPersona: true,
-            messages: [
-              { role: 'system', content: PERSONA_SYSTEM_PROMPTS[kind] },
-              {
-                role: 'user',
-                content: current
-                  ? `Here is my rough idea. Expand and elevate it into the full description — keep my core idea but make it richer and more original:\n\n${current}`
-                  : `Create a completely fresh, unique concept entirely of your own choosing. Be random, surprising and original — avoid clichés and anything predictable.`,
-              },
-            ],
-          }),
+        const keyInfo = await getKey(model);
+        const body = buildRequestBody({
+          messages: [
+            { role: 'system', content: PERSONA_SYSTEM_PROMPTS[kind] },
+            {
+              role: 'user',
+              content: current
+                ? `Here is my rough idea. Expand and elevate it into the full description — keep my core idea but make it richer and more original:\n\n${current}`
+                : `Create a completely fresh, unique concept entirely of your own choosing. Be random, surprising and original — avoid clichés and anything predictable.`,
+            },
+          ],
+          model,
+          rp: false,
+          isPersona: true,
+          thinking: false,
         });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const reader = resp.body?.getReader();
-        if (!reader) throw new Error('No reader');
-        const decoder = new TextDecoder();
-        let buffer = '';
-        while (true) {
-          const { value, done } = await reader.read();
-          if (done) break;
-          if (controller.signal.aborted) break;
-          buffer += decoder.decode(value, { stream: true });
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              const dataStr = line.slice(6).trim();
-              if (dataStr === '[DONE]') continue;
-              try {
-                const data = JSON.parse(dataStr);
-                if (data.error) throw new Error(data.error);
-                if (data.content) pendingOut += data.content;
-              } catch {}
-            }
-          }
-        }
+        await streamChat({
+          body,
+          apiKey: keyInfo.apiKey,
+          baseUrl: keyInfo.baseUrl,
+          signal: controller.signal,
+          cb: {
+            onContent: (t) => { pendingOut += t; },
+            onError: (msg) => { throw new Error(msg); },
+          },
+        });
       } catch (e: any) {
         if (e?.name !== 'AbortError') fetchError = e;
       } finally {
@@ -499,96 +483,51 @@ export default function App() {
     setIsStreaming(false);
     
     try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: currentMessages,
-          model,
-          rp: rpMode,
-          ...(rpMode ? { userPersona, charPersona } : {}),
-          ...(rpMode && promptIsCustom && systemPrompt.trim() ? { customSystemPrompt: systemPrompt } : {}),
-          ...(model.startsWith('poolside/') ? { thinking: lagunaThinking } : {}),
-        }),
-        signal: controller.signal,
+      const keyInfo = await getKey(model);
+      const body = buildRequestBody({
+        messages: currentMessages,
+        model,
+        rp: rpMode,
+        userPersona,
+        charPersona,
+        customSystemPrompt: promptIsCustom ? systemPrompt : '',
+        isPersona: false,
+        ...(model.startsWith('poolside/') ? { thinking: lagunaThinking } : {}),
       });
 
-      if (!response.ok) {
-        let errMsg = `HTTP ${response.status}`;
-        try {
-          const j = await response.json();
-          const detail = j?.error || (typeof j?.detail === 'string' ? j.detail : null);
-          if (detail) errMsg = `${response.status} — ${detail}`;
-        } catch (e) {}
-        throw new Error(errMsg);
-      }
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error('No reader available');
-      
-      const decoder = new TextDecoder();
-      let startedStreaming = false;
-      let buffer = '';
-      let fullAssistantMessage = '';
-
-      while (true) {
-        const { value, done } = await reader.read();
-        
-        if (!startedStreaming) {
-          startedStreaming = true;
-          setIsLoading(false);
-          setIsStreaming(true);
-          setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
-        }
-
-        if (done) break;
-        
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        
-        let chunkContent = '';
-        let chunkReasoning = '';
-        let streamError: string | null = null;
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6).trim();
-            if (dataStr === '[DONE]') continue;
-            try {
-              const data = JSON.parse(dataStr);
-              if (data.error) { streamError = data.error; break; }
-              if (data.reasoning) {
-                chunkReasoning += data.reasoning;
-              }
-              if (data.content) {
-                chunkContent += data.content;
-                fullAssistantMessage += data.content;
-              }
-            } catch (e) {
-              // Ignore partial JSON
-            }
+      let started = false;
+      const accum = { content: '', reasoning: '' };
+      const ensureStarted = () => {
+        if (started) return;
+        started = true;
+        setIsLoading(false);
+        setIsStreaming(true);
+        setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+      };
+      const patchLast = () => {
+        setMessages((prev) => {
+          const copy = [...prev];
+          const i = copy.length - 1;
+          if (copy[i]?.role === 'assistant') {
+            copy[i] = { ...copy[i], content: accum.content, reasoning: accum.reasoning };
           }
-        }
+          return copy;
+        });
+      };
 
-        if (streamError) throw new Error(streamError);
+      await streamChat({
+        body,
+        apiKey: keyInfo.apiKey,
+        baseUrl: keyInfo.baseUrl,
+        signal: controller.signal,
+        cb: {
+          onReasoning: (t) => { ensureStarted(); accum.reasoning += t; patchLast(); },
+          onContent: (t) => { ensureStarted(); accum.content += t; patchLast(); },
+          onError: (msg) => { throw new Error(msg); },
+        },
+      });
 
-        if (chunkContent || chunkReasoning) {
-          setMessages((prev) => {
-            const prevMessages = [...prev];
-            const lastIndex = prevMessages.length - 1;
-            const last = prevMessages[lastIndex];
-            if (last && last.role === 'assistant') {
-              prevMessages[lastIndex] = {
-                ...last,
-                content: last.content + chunkContent,
-                reasoning: (last.reasoning || '') + chunkReasoning,
-              };
-            }
-            return prevMessages;
-          });
-        }
-      }
+      const fullAssistantMessage = accum.content;
 
       const searchMatch = fullAssistantMessage.match(/\[SEARCH:\s*(.*?)\]/i);
       
