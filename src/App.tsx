@@ -924,7 +924,7 @@ export default function App() {
                               <summary className="cursor-pointer select-none inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-zinc-600 hover:text-zinc-400 transition-colors">
                                 {reasoningPending ? (
                                   <>
-                                    <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+                                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 animate-pulse" />
                                     <span>Reasoning</span>
                                   </>
                                 ) : (
