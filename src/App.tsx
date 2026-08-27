@@ -655,7 +655,7 @@ export default function App() {
             onClick={() => (rpMode ? setShowSetup(true) : setShowContact(true))}
             className="flex items-center gap-2 hover:text-zinc-300 transition-colors focus:outline-none"
           >
-            <Lock size={12} className="text-zinc-600" />
+            <Lock size={12} className={(rpMode ? showSetup : showContact) ? 'text-zinc-100' : 'text-zinc-600'} />
             <span>{rpMode ? 'Setup' : 'E2E Channel'}</span>
           </button>
           
@@ -674,7 +674,7 @@ export default function App() {
             className={`flex items-center gap-2 transition-colors focus:outline-none ${showModelPicker ? 'text-zinc-300' : 'hover:text-zinc-300'}`}
           >
             <span>{selectedLabel}</span>
-            <Terminal size={12} className="text-zinc-600" />
+            <Terminal size={12} className={showModelPicker ? 'text-zinc-100' : 'text-zinc-600'} />
           </button>
 
           <AnimatePresence>
