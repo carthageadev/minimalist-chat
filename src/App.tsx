@@ -156,7 +156,7 @@ Character control rules (strict):
 
 const MODELS = [
   { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano' },
-  { id: 'poolside/laguna-xs-2.1', label: 'Laguna', reasoningToggle: true },
+  { id: 'poolside/laguna-xs-2.1', label: 'Laguna 2.1 XS', reasoningToggle: true },
   { id: 'openai/gpt-oss-20b', label: 'GPT-OSS' },
   { id: 'minimaxai/minimax-m3', label: 'MiniMax M3' },
   { id: 'Lorbus/Qwen3.6-27B-int4-AutoRound', label: 'Qwen 3.6', baseUrl: 'https://hermes.ai.unturf.com/v1', splitThink: true, reasoningToggle: true },
