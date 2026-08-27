@@ -44,10 +44,9 @@ export function buildRequestBody(opts: {
   charPersona?: string;
   customSystemPrompt?: string;
   isPersona?: boolean;
-  thinking?: boolean;
   reasoningOff?: boolean;
 }): Record<string, unknown> {
-  const { messages, model, rp, userPersona, charPersona, customSystemPrompt, isPersona, thinking, reasoningOff } = opts;
+  const { messages, model, rp, userPersona, charPersona, customSystemPrompt, isPersona, reasoningOff } = opts;
 
   let systemContent = rp ? rpSystemPrompt : baseSystemPrompt;
   if (rp && typeof customSystemPrompt === 'string' && customSystemPrompt.trim()) {
@@ -73,8 +72,9 @@ export function buildRequestBody(opts: {
     stream: true,
   };
 
-  if (model.startsWith('poolside/') && typeof thinking === 'boolean') {
-    body.chat_template_kwargs = { enable_thinking: thinking };
+  if (model.startsWith('poolside/')) {
+    // Laguna's thinking is a boolean chat-template flag. reasoningOff flips it.
+    body.chat_template_kwargs = { enable_thinking: !opts.reasoningOff };
   }
 
   if (model.startsWith('minimaxai/')) {

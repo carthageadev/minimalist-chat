@@ -156,7 +156,7 @@ Character control rules (strict):
 
 const MODELS = [
   { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano' },
-  { id: 'poolside/laguna-xs-2.1', label: '2.1 XS' },
+  { id: 'poolside/laguna-xs-2.1', label: 'Laguna', reasoningToggle: true },
   { id: 'openai/gpt-oss-20b', label: 'GPT-OSS' },
   { id: 'minimaxai/minimax-m3', label: 'MiniMax M3' },
   { id: 'Lorbus/Qwen3.6-27B-int4-AutoRound', label: 'Qwen 3.6', baseUrl: 'https://hermes.ai.unturf.com/v1', splitThink: true, reasoningToggle: true },
@@ -258,10 +258,6 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [model, setModel] = useState<string>(() => localStorage.getItem('selected-model') || MODELS[0].id);
   const [showModelPicker, setShowModelPicker] = useState(false);
-  const [lagunaThinking, setLagunaThinking] = useState<boolean>(() => localStorage.getItem('laguna-thinking') !== '0');
-  // Per-model reasoning on/off (Hermes Qwen / Kimi K3). Stored as a map keyed
-  // by model id so each model remembers its own choice. Default OFF; once a
-  // user turns a model's reasoning ON we persist it for that model only.
   const [reasoningStates, setReasoningStates] = useState<Record<string, boolean>>(() => {
     try { return JSON.parse(localStorage.getItem('reasoning-states') || '{}'); } catch { return {}; }
   });
@@ -333,7 +329,6 @@ export default function App() {
           model,
           rp: false,
           isPersona: true,
-          thinking: false,
           ...(modelSupportsReasoningToggle(model) && !isReasoningOn(model) ? { reasoningOff: true } : {}),
         });
         await streamChat({
@@ -412,14 +407,6 @@ export default function App() {
       state.count = 0;
       setShowModelPicker(false);
     }
-  };
-
-  const toggleLagunaThinking = () => {
-    setLagunaThinking((v) => {
-      const next = !v;
-      localStorage.setItem('laguna-thinking', next ? '1' : '0');
-      return next;
-    });
   };
 
   const toggleReasoning = (id: string) => {
@@ -536,7 +523,6 @@ export default function App() {
         charPersona,
         customSystemPrompt: promptIsCustom ? systemPrompt : '',
         isPersona: false,
-        ...(model.startsWith('poolside/') ? { thinking: lagunaThinking } : {}),
         ...(modelSupportsReasoningToggle(model) && !isReasoningOn(model) ? { reasoningOff: true } : {}),
       });
 
@@ -713,25 +699,6 @@ export default function App() {
                     >
                       <span className="flex items-center gap-2">
                         <span>{m.label}</span>
-                        {m.id.startsWith('poolside/') && (
-                          <motion.span
-                            role="switch"
-                            aria-checked={lagunaThinking}
-                            aria-label="Toggle thinking"
-                            title={lagunaThinking ? 'Thinking: on' : 'Thinking: off'}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleLagunaThinking();
-                            }}
-                            whileTap={{ scale: 0.7, rotate: -8 }}
-                            animate={{ scale: [1, 1.25, 1] }}
-                            key={String(lagunaThinking)}
-                            transition={{ duration: 0.25, ease: "easeOut" }}
-                            className={`cursor-pointer shrink-0 transition-colors duration-200 ${lagunaThinking ? 'text-zinc-100' : 'text-zinc-600 hover:text-zinc-400'}`}
-                          >
-                            <Brain size={13} strokeWidth={2} />
-                          </motion.span>
-                        )}
                         {(m as any).reasoningToggle && (
                           <motion.span
                             role="switch"
