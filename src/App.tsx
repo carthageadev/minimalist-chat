@@ -259,10 +259,13 @@ export default function App() {
   const [model, setModel] = useState<string>(() => localStorage.getItem('selected-model') || MODELS[0].id);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [lagunaThinking, setLagunaThinking] = useState<boolean>(() => localStorage.getItem('laguna-thinking') !== '0');
-  // Reasoning toggle for models that support it (Hermes Qwen / Kimi K3).
-  // Default OFF; once a user turns it ON we persist it so they don't re-toggle
-  // every session.
-  const [reasoningOn, setReasoningOn] = useState<boolean>(() => localStorage.getItem('hermes-reasoning') === '1');
+  // Per-model reasoning on/off (Hermes Qwen / Kimi K3). Stored as a map keyed
+  // by model id so each model remembers its own choice. Default OFF; once a
+  // user turns a model's reasoning ON we persist it for that model only.
+  const [reasoningStates, setReasoningStates] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(localStorage.getItem('reasoning-states') || '{}'); } catch { return {}; }
+  });
+  const isReasoningOn = (id: string) => !!reasoningStates[id];
   const [rpMode, setRpMode] = useState<boolean>(false);
   const [rpReveal, setRpReveal] = useState<boolean>(false);
 
@@ -331,12 +334,12 @@ export default function App() {
           rp: false,
           isPersona: true,
           thinking: false,
-          ...(modelSupportsReasoningToggle(model) && !reasoningOn ? { reasoningOff: true } : {}),
+          ...(modelSupportsReasoningToggle(model) && !isReasoningOn(model) ? { reasoningOff: true } : {}),
         });
         await streamChat({
           body,
           baseUrl: (MODELS.find((m) => m.id === model) as any)?.baseUrl,
-          splitThink: !!(MODELS.find((m) => m.id === model) as any)?.splitThink && !(modelSupportsReasoningToggle(model) && !reasoningOn),
+          splitThink: !!(MODELS.find((m) => m.id === model) as any)?.splitThink && !(modelSupportsReasoningToggle(model) && !isReasoningOn(model)),
           signal: controller.signal,
           cb: {
             onContent: (t) => { pendingOut += t; },
@@ -419,10 +422,10 @@ export default function App() {
     });
   };
 
-  const toggleReasoning = () => {
-    setReasoningOn((v) => {
-      const next = !v;
-      localStorage.setItem('hermes-reasoning', next ? '1' : '0');
+  const toggleReasoning = (id: string) => {
+    setReasoningStates((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      localStorage.setItem('reasoning-states', JSON.stringify(next));
       return next;
     });
   };
@@ -534,7 +537,7 @@ export default function App() {
         customSystemPrompt: promptIsCustom ? systemPrompt : '',
         isPersona: false,
         ...(model.startsWith('poolside/') ? { thinking: lagunaThinking } : {}),
-        ...(modelSupportsReasoningToggle(model) && !reasoningOn ? { reasoningOff: true } : {}),
+        ...(modelSupportsReasoningToggle(model) && !isReasoningOn(model) ? { reasoningOff: true } : {}),
       });
 
       let started = false;
@@ -560,7 +563,7 @@ export default function App() {
       await streamChat({
         body,
         baseUrl: MODELS.find((m) => m.id === model)?.baseUrl,
-        splitThink: !!(MODELS.find((m) => m.id === model) as any)?.splitThink && !(modelSupportsReasoningToggle(model) && !reasoningOn),
+        splitThink: !!(MODELS.find((m) => m.id === model) as any)?.splitThink && !(modelSupportsReasoningToggle(model) && !isReasoningOn(model)),
         signal: controller.signal,
         cb: {
           onReasoning: (t) => { ensureStarted(); accum.reasoning += t; patchLast(); },
@@ -732,18 +735,18 @@ export default function App() {
                         {(m as any).reasoningToggle && (
                           <motion.span
                             role="switch"
-                            aria-checked={reasoningOn}
+                            aria-checked={isReasoningOn(m.id)}
                             aria-label="Toggle reasoning"
-                            title={reasoningOn ? 'Reasoning: on (deep answers)' : 'Reasoning: off'}
+                            title={isReasoningOn(m.id) ? 'Reasoning: on (deep answers)' : 'Reasoning: off'}
                             onClick={(e) => {
                               e.stopPropagation();
-                              toggleReasoning();
+                              toggleReasoning(m.id);
                             }}
                             whileTap={{ scale: 0.7, rotate: -8 }}
                             animate={{ scale: [1, 1.25, 1] }}
-                            key={String(reasoningOn)}
+                            key={String(isReasoningOn(m.id))}
                             transition={{ duration: 0.25, ease: "easeOut" }}
-                            className={`cursor-pointer shrink-0 transition-colors duration-200 ${reasoningOn ? 'text-zinc-100' : 'text-zinc-600 hover:text-zinc-400'}`}
+                            className={`cursor-pointer shrink-0 transition-colors duration-200 ${isReasoningOn(m.id) ? 'text-zinc-100' : 'text-zinc-600 hover:text-zinc-400'}`}
                           >
                             <Brain size={13} strokeWidth={2} />
                           </motion.span>
