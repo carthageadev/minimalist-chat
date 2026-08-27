@@ -45,8 +45,9 @@ export function buildRequestBody(opts: {
   customSystemPrompt?: string;
   isPersona?: boolean;
   thinking?: boolean;
+  reasoningOff?: boolean;
 }): Record<string, unknown> {
-  const { messages, model, rp, userPersona, charPersona, customSystemPrompt, isPersona, thinking } = opts;
+  const { messages, model, rp, userPersona, charPersona, customSystemPrompt, isPersona, thinking, reasoningOff } = opts;
 
   let systemContent = rp ? rpSystemPrompt : baseSystemPrompt;
   if (rp && typeof customSystemPrompt === 'string' && customSystemPrompt.trim()) {
@@ -85,6 +86,14 @@ export function buildRequestBody(opts: {
 
   if (rp) {
     body.temperature = 1;
+  }
+
+  // Unified "reasoning off" switch. Modern reasoning models accept
+  // reasoning_effort: "none" to fully skip their chain-of-thought (verified on
+  // Hermes/Qwen3.6, and K3 exposes the same level). Only sent for models that
+  // expose a reasoning toggle — never on plain chat models.
+  if (opts.reasoningOff) {
+    body.reasoning_effort = 'none';
   }
 
   return body;

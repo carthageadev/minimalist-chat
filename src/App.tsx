@@ -159,7 +159,8 @@ const MODELS = [
   { id: 'poolside/laguna-xs-2.1', label: 'Laguna XS 2.1' },
   { id: 'openai/gpt-oss-20b', label: 'GPT-OSS 20B' },
   { id: 'minimaxai/minimax-m3', label: 'MiniMax M3' },
-  { id: 'Lorbus/Qwen3.6-27B-int4-AutoRound', label: 'Hermes Qwen 27B', baseUrl: 'https://hermes.ai.unturf.com/v1', splitThink: true },
+  { id: 'Lorbus/Qwen3.6-27B-int4-AutoRound', label: 'Hermes Qwen 27B', baseUrl: 'https://hermes.ai.unturf.com/v1', splitThink: true, reasoningToggle: true },
+  { id: 'moonshotai/kimi-k3', label: 'Kimi K3', reasoningToggle: true },
 ];
 
 interface Message {
@@ -258,6 +259,10 @@ export default function App() {
   const [model, setModel] = useState<string>(() => localStorage.getItem('selected-model') || MODELS[0].id);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [lagunaThinking, setLagunaThinking] = useState<boolean>(() => localStorage.getItem('laguna-thinking') !== '0');
+  // Reasoning toggle for models that support it (Hermes Qwen / Kimi K3).
+  // Default OFF; once a user turns it ON we persist it so they don't re-toggle
+  // every session.
+  const [reasoningOn, setReasoningOn] = useState<boolean>(() => localStorage.getItem('hermes-reasoning') === '1');
   const [rpMode, setRpMode] = useState<boolean>(false);
   const [rpReveal, setRpReveal] = useState<boolean>(false);
 
@@ -326,11 +331,12 @@ export default function App() {
           rp: false,
           isPersona: true,
           thinking: false,
+          ...(modelSupportsReasoningToggle(model) && !reasoningOn ? { reasoningOff: true } : {}),
         });
         await streamChat({
           body,
           baseUrl: (MODELS.find((m) => m.id === model) as any)?.baseUrl,
-          splitThink: !!(MODELS.find((m) => m.id === model) as any)?.splitThink,
+          splitThink: !!(MODELS.find((m) => m.id === model) as any)?.splitThink && !(modelSupportsReasoningToggle(model) && !reasoningOn),
           signal: controller.signal,
           cb: {
             onContent: (t) => { pendingOut += t; },
@@ -413,7 +419,17 @@ export default function App() {
     });
   };
 
+  const toggleReasoning = () => {
+    setReasoningOn((v) => {
+      const next = !v;
+      localStorage.setItem('hermes-reasoning', next ? '1' : '0');
+      return next;
+    });
+  };
+
   const selectedLabel = MODELS.find((m) => m.id === model)?.label ?? model;
+  const modelSupportsReasoningToggle = (id: string) =>
+    !!(MODELS.find((m) => m.id === id) as any)?.reasoningToggle;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
@@ -518,6 +534,7 @@ export default function App() {
         customSystemPrompt: promptIsCustom ? systemPrompt : '',
         isPersona: false,
         ...(model.startsWith('poolside/') ? { thinking: lagunaThinking } : {}),
+        ...(modelSupportsReasoningToggle(model) && !reasoningOn ? { reasoningOff: true } : {}),
       });
 
       let started = false;
@@ -543,7 +560,7 @@ export default function App() {
       await streamChat({
         body,
         baseUrl: MODELS.find((m) => m.id === model)?.baseUrl,
-        splitThink: !!(MODELS.find((m) => m.id === model) as any)?.splitThink,
+        splitThink: !!(MODELS.find((m) => m.id === model) as any)?.splitThink && !(modelSupportsReasoningToggle(model) && !reasoningOn),
         signal: controller.signal,
         cb: {
           onReasoning: (t) => { ensureStarted(); accum.reasoning += t; patchLast(); },
@@ -708,6 +725,25 @@ export default function App() {
                             key={String(lagunaThinking)}
                             transition={{ duration: 0.25, ease: "easeOut" }}
                             className={`cursor-pointer shrink-0 transition-colors duration-200 ${lagunaThinking ? 'text-zinc-100' : 'text-zinc-600 hover:text-zinc-400'}`}
+                          >
+                            <Brain size={13} strokeWidth={2} />
+                          </motion.span>
+                        )}
+                        {(m as any).reasoningToggle && (
+                          <motion.span
+                            role="switch"
+                            aria-checked={reasoningOn}
+                            aria-label="Toggle reasoning"
+                            title={reasoningOn ? 'Reasoning: on (deep answers)' : 'Reasoning: off'}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleReasoning();
+                            }}
+                            whileTap={{ scale: 0.7, rotate: -8 }}
+                            animate={{ scale: [1, 1.25, 1] }}
+                            key={String(reasoningOn)}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className={`cursor-pointer shrink-0 transition-colors duration-200 ${reasoningOn ? 'text-zinc-100' : 'text-zinc-600 hover:text-zinc-400'}`}
                           >
                             <Brain size={13} strokeWidth={2} />
                           </motion.span>
