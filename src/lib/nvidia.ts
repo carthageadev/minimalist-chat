@@ -84,6 +84,11 @@ export function buildRequestBody(opts: {
     body.chat_template_kwargs = { enable_thinking: !opts.reasoningOff };
   }
 
+  if (model.startsWith('nvidia/nemotron')) {
+    // Nemotron uses the same enable_thinking chat-template toggle.
+    body.chat_template_kwargs = { enable_thinking: !opts.reasoningOff };
+  }
+
   if (model.startsWith('minimaxai/')) {
     // MiniMax-m3 emits its chain-of-thought only when this kwarg is present
     // (per NVIDIA's own docs). thinking_mode flips with the reasoning toggle.

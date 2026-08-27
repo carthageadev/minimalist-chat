@@ -155,7 +155,7 @@ Character control rules (strict):
 - Never write {{user}}'s dialogue or actions; always leave room for them to respond.`;
 
 const MODELS = [
-  { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano' },
+  { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano', reasoningToggle: true },
   { id: 'poolside/laguna-xs-2.1', label: 'Laguna 2.1 XS', reasoningToggle: true },
   { id: 'openai/gpt-oss-20b', label: 'GPT-OSS' },
   { id: 'minimaxai/minimax-m3', label: 'MiniMax M3', reasoningToggle: true },
