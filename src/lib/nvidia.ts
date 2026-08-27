@@ -86,21 +86,19 @@ export function buildRequestBody(opts: {
 
   if (model.startsWith('minimaxai/')) {
     // MiniMax-m3 emits its chain-of-thought only when this kwarg is present
-    // (per NVIDIA's own docs). Matches the docs payload: temperature 1, top_p 0.95.
+    // (per NVIDIA's own docs). thinking_mode flips with the reasoning toggle.
     body.temperature = 1;
     body.top_p = 0.95;
-    body.chat_template_kwargs = { thinking_mode: 'enabled' };
+    body.chat_template_kwargs = { thinking_mode: opts.reasoningOff ? 'disabled' : 'enabled' };
   }
 
   if (rp) {
     body.temperature = 1;
   }
 
-  // Unified "reasoning off" switch. Modern reasoning models accept
-  // reasoning_effort: "none" to fully skip their chain-of-thought (verified on
-  // Hermes/Qwen3.6, and K3 exposes the same level). Only sent for models that
-  // expose a reasoning toggle — never on plain chat models.
-  if (opts.reasoningOff) {
+  // Unified "reasoning off" switch for the models that use reasoning_effort.
+  // (poolside uses enable_thinking above; MiniMax uses thinking_mode above.)
+  if (opts.reasoningOff && (model.startsWith('Lorbus/') || model.startsWith('moonshotai/'))) {
     body.reasoning_effort = 'none';
   }
 
