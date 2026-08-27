@@ -85,10 +85,11 @@ export function buildRequestBody(opts: {
   }
 
   if (model.startsWith('minimaxai/')) {
-    // NOTE: do NOT send chat_template_kwargs here — NVIDIA's hosted minimax-m3
-    // rejects it with a 429 (it routes to a contended variant).
+    // MiniMax-m3 emits its chain-of-thought only when this kwarg is present
+    // (per NVIDIA's own docs). Matches the docs payload: temperature 1, top_p 0.95.
     body.temperature = 1;
     body.top_p = 0.95;
+    body.chat_template_kwargs = { thinking_mode: 'enabled' };
   }
 
   if (rp) {
