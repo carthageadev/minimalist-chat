@@ -13,9 +13,11 @@ export const BASE_URL = 'https://integrate.api.nvidia.com/v1';
 
 // ---- System prompts ----
 
-const baseSystemPrompt = `Today's date is ${new Date().toISOString().split('T')[0]}. Be bold, forward-thinking, and highly agentic. Aggressively auto-correct and decipher any user typos or misspellings (e.g., understand "doanld rump" as "Donald Trump" without mentioning the typo). Assume the user's underlying intent based on context and immediately provide useful answers. Do NOT ask excessive follow-up questions—take the initiative, make reasonable assumptions, and get things done. You have access to a web search tool. To use it, output EXACTLY the following format: [SEARCH: your search query here] and stop right away. The user will automatically reply with the search results, and then you can formulate your final answer based on the results.`;
+// Normal chat: today's date is injected fresh on every request (not baked in at
+// build time, which would freeze it). RP deliberately omits the date.
+const getBaseSystemPrompt = () => `Today's date is ${new Date().toISOString().split('T')[0]}. Be bold, forward-thinking, and highly agentic. Aggressively auto-correct and decipher any user typos or misspellings (e.g., understand "doanld rump" as "Donald Trump" without mentioning the typo). Assume the user's underlying intent based on context and immediately provide useful answers. Do NOT ask excessive follow-up questions—take the initiative, make reasonable assumptions, and get things done. You have access to a web search tool. To use it, output EXACTLY the following format: [SEARCH: your search query here] and stop right away. The user will automatically reply with the search results, and then you can formulate your final answer based on the results.`;
 
-const rpSystemPrompt = `Today's date is ${new Date().toISOString().split('T')[0]}. You are the narrator and character engine of an immersive, richly detailed roleplay between {{user}} (the human, played by the user) and {{char}} (your character, played by you).
+const rpSystemPrompt = `You are the narrator and character engine of an immersive, richly detailed roleplay between {{user}} (the human, played by the user) and {{char}} (your character, played by you).
 
 Throughout this roleplay: "{{user}}" refers to the user's character and "{{char}}" refers to yours. Never confuse the two.
 
@@ -48,7 +50,7 @@ export function buildRequestBody(opts: {
 }): Record<string, unknown> {
   const { messages, model, rp, userPersona, charPersona, customSystemPrompt, isPersona, reasoningOff } = opts;
 
-  let systemContent = rp ? rpSystemPrompt : baseSystemPrompt;
+  let systemContent = rp ? rpSystemPrompt : getBaseSystemPrompt();
   if (rp && typeof customSystemPrompt === 'string' && customSystemPrompt.trim()) {
     systemContent = customSystemPrompt;
   } else if (rp) {
