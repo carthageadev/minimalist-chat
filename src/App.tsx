@@ -314,6 +314,8 @@ export default function App() {
   // only entered explicitly via /history or /chats in RP mode.
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
+  const [titleDraft, setTitleDraft] = useState('');
   const [messages, setMessages] = useState<Message[]>(() => []);
   // Normal mode is ephemeral — only persist the draft while RP is off briefly
   // on refresh we start clean; draft restores only if you re-enter before sending
@@ -487,6 +489,21 @@ export default function App() {
     saveHistory(next);
     setChats(next);
     if (currentChatId === id) startNewChat();
+  };
+  const startTitleEdit = (id: string, cur: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingTitleId(id);
+    setTitleDraft(cur);
+  };
+  const saveTitle = (id: string) => {
+    const t = titleDraft.trim().slice(0, 60);
+    if (!t) { setEditingTitleId(null); return; }
+    setChats(prev => {
+      const next = prev.map(c => c.id === id ? { ...c, title: t, updatedAt: Date.now() } : c);
+      saveHistory(next);
+      return next;
+    });
+    setEditingTitleId(null);
   };
 
   const generatePersona = async (kind: 'user' | 'char') => {
@@ -1028,28 +1045,56 @@ export default function App() {
                     .slice()
                     .sort((a, b) => b.updatedAt - a.updatedAt)
                     .map((c) => (
-                      <button
+                      <div
                         key={c.id}
-                        onClick={() => openChat(c.id)}
-                        className={`w-full text-left px-4 py-3 rounded-sm border transition-colors group flex flex-col gap-1 ${currentChatId === c.id ? 'bg-zinc-800/50 border-zinc-700' : 'bg-zinc-900/30 border-zinc-800/60 hover:bg-zinc-800/40 hover:border-zinc-700/60'}`}
+                        onClick={() => editingTitleId !== c.id && openChat(c.id)}
+                        className={`w-full text-left px-4 py-3 rounded-sm border transition-colors group flex flex-col gap-1 cursor-pointer ${currentChatId === c.id ? 'bg-zinc-800/50 border-zinc-700' : 'bg-zinc-900/30 border-zinc-800/60 hover:bg-zinc-800/40 hover:border-zinc-700/60'}`}
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <span className="text-sm font-medium text-zinc-200 line-clamp-1 flex-1">{c.title}</span>
+                          {editingTitleId === c.id ? (
+                            <div className="flex items-center gap-1 flex-1" onClick={e => e.stopPropagation()}>
+                              <input
+                                value={titleDraft}
+                                onChange={e => setTitleDraft(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') { e.preventDefault(); saveTitle(c.id); }
+                                  if (e.key === 'Escape') setEditingTitleId(null);
+                                }}
+                                className="flex-1 bg-zinc-800 border border-zinc-700 focus:border-zinc-600 rounded-sm px-2 py-1 text-sm text-zinc-100 focus:outline-none"
+                                autoFocus
+                                maxLength={60}
+                              />
+                              <button onClick={e => { e.stopPropagation(); saveTitle(c.id); }} className="p-1 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-700/50 rounded-sm"><Check size={12} /></button>
+                              <button onClick={e => { e.stopPropagation(); setEditingTitleId(null); }} className="p-1 text-zinc-500 hover:text-zinc-300"><X size={12} /></button>
+                            </div>
+                          ) : (
+                            <span className="text-sm font-medium text-zinc-200 line-clamp-1 flex-1">{c.title}</span>
+                          )}
                           <span className="shrink-0 flex items-center gap-1">
                             <span className="font-mono text-[10px] text-zinc-500">{formatDate(c.updatedAt)}</span>
-                            <span
-                              role="button"
-                              onClick={(e) => deleteChat(c.id, e)}
-                              className="ml-1 p-1 opacity-60 md:opacity-0 md:group-hover:opacity-100 hover:text-red-400 text-zinc-600 transition-all"
-                              title="Delete"
-                            >
-                              <X size={12} />
-                            </span>
+                            {editingTitleId !== c.id && (
+                              <>
+                                <button
+                                  onClick={e => startTitleEdit(c.id, c.title, e)}
+                                  className="ml-1 p-1 opacity-60 md:opacity-0 md:group-hover:opacity-100 hover:text-zinc-300 text-zinc-600 transition-all"
+                                  title="Edit title"
+                                >
+                                  <Pencil size={12} />
+                                </button>
+                                <button
+                                  onClick={(e) => deleteChat(c.id, e)}
+                                  className="p-1 opacity-60 md:opacity-0 md:group-hover:opacity-100 hover:text-red-400 text-zinc-600 transition-all"
+                                  title="Delete"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </>
+                            )}
                           </span>
                         </div>
                         <span className="text-xs text-zinc-500 line-clamp-1">{c.messages.filter(m => m.role !== 'system').slice(-1)[0]?.content.slice(0, 90) || '—'}</span>
-                        <span className="font-mono text-[10px] text-zinc-600">{c.model.split('/').pop()} · {c.messages.length} msgs {c.rpMode ? '· RP' : ''}</span>
-                      </button>
+                        <span className="font-mono text-[10px] text-zinc-600">{c.model.split('/').pop()} · {c.messages.length} msgs</span>
+                      </div>
                     ))
                 )}
               </div>
