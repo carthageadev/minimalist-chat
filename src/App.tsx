@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Send, Lock, Terminal, Maximize, Minimize, X, Square, Check, Brain, Sparkles } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { Streamdown } from 'streamdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { motion, AnimatePresence } from 'motion/react';
@@ -976,11 +975,11 @@ export default function App() {
                             </details>
                           );
                         })()}
-                        <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
+                        <Streamdown
+                        isAnimating={isStreaming && idx === messages.length - 1}
                         components={{
                           hr: () => <hr className="border-t border-zinc-800/80 my-8" />,
-                          strong: ({ node, children, ...props }) => {
+                          strong: ({ node, children, ...props }: any) => {
                             const start = node?.position?.start?.offset ?? -1;
                             const before = start >= 0 ? msg.content.slice(0, start) : '';
                             const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
@@ -994,30 +993,30 @@ export default function App() {
                               </strong>
                             );
                           },
-                          em: ({ node, children, ...props }) => {
+                          em: ({ node, children, ...props }: any) => {
                             const start = node?.position?.start?.offset ?? -1;
                             const before = start >= 0 ? msg.content.slice(0, start) : '';
                             const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
                             return <span className={inQuote ? 'text-zinc-100 italic font-medium' : 'text-zinc-500/80'} {...props}>{children}</span>;
                           },
-                          table: ({ node, ...props }) => (
+                          table: ({ node, ...props }: any) => (
                             <div className="w-full overflow-x-auto my-6 border border-zinc-800/80 rounded-sm">
                               <table className="w-full text-sm text-left border-collapse" {...props} />
                             </div>
                           ),
-                          thead: ({ node, ...props }) => <thead className="bg-[#0c0c0e] border-b border-zinc-800/80 text-zinc-300" {...props} />,
-                          tbody: ({ node, ...props }) => <tbody className="divide-y divide-zinc-800/80 text-zinc-400" {...props} />,
-                          tr: ({ node, ...props }) => <tr className="hover:bg-zinc-900/30 transition-colors" {...props} />,
-                          th: ({ node, ...props }) => <th className="px-4 py-3 font-medium text-zinc-200" {...props} />,
-                          td: ({ node, ...props }) => <td className="px-4 py-3" {...props} />,
-                          blockquote: ({ node, ...props }) => <blockquote className="border-l-2 border-zinc-600 pl-4 my-4 italic text-zinc-400" {...props} />,
-                          code: ({ node, className, children, ...props }) => {
+                          thead: ({ node, ...props }: any) => <thead className="bg-[#0c0c0e] border-b border-zinc-800/80 text-zinc-300" {...props} />,
+                          tbody: ({ node, ...props }: any) => <tbody className="divide-y divide-zinc-800/80 text-zinc-400" {...props} />,
+                          tr: ({ node, ...props }: any) => <tr className="hover:bg-zinc-900/30 transition-colors" {...props} />,
+                          th: ({ node, ...props }: any) => <th className="px-4 py-3 font-medium text-zinc-200" {...props} />,
+                          td: ({ node, ...props }: any) => <td className="px-4 py-3" {...props} />,
+                          blockquote: ({ node, ...props }: any) => <blockquote className="border-l-2 border-zinc-600 pl-4 my-4 italic text-zinc-400" {...props} />,
+                          code: ({ node, className, children, ...props }: any) => {
                             const match = /language-(\w+)/.exec(className || '');
                             const isInline = !match && !String(children).includes('\n');
                             if (isInline) {
                               return <code className="bg-zinc-800 text-zinc-200 px-1.5 py-0.5 rounded-sm text-sm font-mono" {...props}>{children}</code>;
                             }
-                            
+
                             const CopyButton = ({ text }: { text: string }) => {
                               const [copied, setCopied] = useState(false);
                               const handleCopy = () => {
@@ -1058,7 +1057,7 @@ export default function App() {
                             );
                           }
                         }}
-                      >{msg.content}</ReactMarkdown>
+                      >{msg.content}</Streamdown>
                       </>
                     ) : (
                       <div className="whitespace-pre-wrap">
