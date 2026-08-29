@@ -153,10 +153,10 @@ Character control rules (strict):
 - NEVER speak, act, think, or decide anything on behalf of {{user}}.
 - Never write {{user}}'s dialogue or actions; always leave room for them to respond.`;
 
+const TITLE_MODEL = 'openai/gpt-oss-20b';
 const MODELS = [
   { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano', reasoningToggle: true },
   { id: 'poolside/laguna-xs-2.1', label: 'Laguna 2.1 XS', reasoningToggle: true },
-  { id: 'openai/gpt-oss-20b', label: 'GPT-OSS' },
   { id: 'minimaxai/minimax-m3', label: 'MiniMax M3', reasoningToggle: true },
   { id: 'Lorbus/Qwen3.6-27B-int4-AutoRound', label: 'Qwen 3.6', baseUrl: 'https://hermes.ai.unturf.com/v1', splitThink: true, reasoningToggle: true },
   { id: 'moonshotai/kimi-k3', label: 'Kimi K3', reasoningToggle: true },
@@ -168,6 +168,59 @@ interface Message {
   reasoning?: string;
   error?: boolean;
 }
+
+interface ChatSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  model: string;
+  rpMode: boolean;
+  userPersona?: string;
+  charPersona?: string;
+  messages: Message[];
+}
+
+const HISTORY_KEY = 'chat-history-v2';
+const CURRENT_CHAT_KEY = 'current-chat-id-v2';
+const DRAFT_KEY = 'draft-input-v2';
+
+const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const loadHistory = (): ChatSession[] => {
+  try { const raw = localStorage.getItem(HISTORY_KEY); return raw ? JSON.parse(raw) : []; } catch { return []; }
+};
+const saveHistory = (chats: ChatSession[]) => localStorage.setItem(HISTORY_KEY, JSON.stringify(chats));
+const formatDate = (ts: number) => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+
+// Title generation via GPT-OSS 20B (removed from picker, used only here)
+const generateChatTitle = async (opts: { messages: Message[]; rpMode: boolean; userPersona: string; charPersona: string; signal?: AbortSignal }): Promise<string> => {
+  const { messages, rpMode, userPersona, charPersona } = opts;
+  const preview = messages.slice(0, 4).map(m => `${m.role}: ${m.content.slice(0, 400)}`).join('\n---\n');
+  const rpBlock = rpMode ? `\n\nUser persona: ${userPersona.slice(0, 600)}\nChar persona: ${charPersona.slice(0, 600)}` : '';
+  const prompt = `Generate a very short, punchy chat title (3-6 words, no quotes, no period, Title Case) for this conversation. Capture the core scenario/story.\n\nConversation preview:\n${preview}${rpBlock}\n\nTitle:`;
+  let out = '';
+  try {
+    const body = buildRequestBody({
+      messages: [
+        { role: 'system', content: 'You are a title generator. Respond with ONLY the title, nothing else.' },
+        { role: 'user', content: prompt },
+      ],
+      model: TITLE_MODEL,
+      rp: false,
+      isPersona: false,
+    });
+    // Title model uses low temp, small max_tokens — override
+    (body as any).temperature = 0.7;
+    (body as any).max_tokens = 60;
+    await streamChat({
+      body,
+      signal: opts.signal,
+      cb: { onContent: (t) => { out += t; }, onError: () => {} },
+    });
+  } catch {}
+  const cleaned = out.trim().replace(/^["'“”]+|["'“”]+$/g, '').split('\n')[0].slice(0, 60).trim();
+  return cleaned || (rpMode ? 'Untitled Story' : 'New Chat');
+};
 
 // Keep history bounded so requests stay within the model's context window.
 // Token-aware: keep as much recent history as fits, instead of a fixed count.
@@ -249,13 +302,27 @@ const GREETINGS = [
 
 export default function App() {
   const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [input, setInput] = useState('');
+  const [chats, setChats] = useState<ChatSession[]>(() => loadHistory());
+  const [currentChatId, setCurrentChatId] = useState<string | null>(() => localStorage.getItem(CURRENT_CHAT_KEY));
+  const [showHistory, setShowHistory] = useState(false);
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const id = localStorage.getItem(CURRENT_CHAT_KEY);
+      if (!id) return [];
+      const h = loadHistory();
+      return h.find(c => c.id === id)?.messages ?? [];
+    } catch { return []; }
+  });
+  const [input, setInput] = useState(() => localStorage.getItem(DRAFT_KEY) || '');
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [showContact, setShowContact] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [model, setModel] = useState<string>(() => localStorage.getItem('selected-model') || MODELS[0].id);
+  const [model, setModel] = useState<string>(() => {
+    const stored = localStorage.getItem('selected-model');
+    if (stored === TITLE_MODEL) return MODELS[0].id;
+    return stored || MODELS[0].id;
+  });
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [reasoningStates, setReasoningStates] = useState<Record<string, boolean>>(() => {
     try { return JSON.parse(localStorage.getItem('reasoning-states') || '{}'); } catch { return {}; }
@@ -285,6 +352,119 @@ export default function App() {
   const [genChar, setGenChar] = useState(false);
   const userAbortRef = useRef<AbortController | null>(null);
   const charAbortRef = useRef<AbortController | null>(null);
+  const titleGenRef = useRef<AbortController | null>(null);
+  const hasTitledRef = useRef(false);
+
+  // ---- Persistence ----
+  useEffect(() => { localStorage.setItem(DRAFT_KEY, input); }, [input]);
+  useEffect(() => {
+    if (currentChatId) localStorage.setItem(CURRENT_CHAT_KEY, currentChatId);
+    else localStorage.removeItem(CURRENT_CHAT_KEY);
+  }, [currentChatId]);
+
+  // Keep chats in sync with current messages (create chat on first real message)
+  useEffect(() => {
+    if (messages.length === 0) return;
+    // Don't persist system-only search noise
+    const hasReal = messages.some(m => m.role === 'user' || m.role === 'assistant');
+    if (!hasReal) return;
+    setChats(prev => {
+      let next: ChatSession[];
+      const now = Date.now();
+      if (currentChatId) {
+        const idx = prev.findIndex(c => c.id === currentChatId);
+        if (idx !== -1) {
+          next = [...prev];
+          next[idx] = { ...next[idx], messages: [...messages], updatedAt: now, model, rpMode, userPersona, charPersona };
+        } else {
+          // current id missing (deleted) — create new
+          const chat: ChatSession = { id: genId(), title: 'New Chat', createdAt: now, updatedAt: now, model, rpMode, userPersona, charPersona, messages: [...messages] };
+          setCurrentChatId(chat.id);
+          next = [chat, ...prev];
+        }
+      } else {
+        const chat: ChatSession = { id: genId(), title: 'New Chat', createdAt: now, updatedAt: now, model, rpMode, userPersona, charPersona, messages: [...messages] };
+        setCurrentChatId(chat.id);
+        next = [chat, ...prev];
+      }
+      saveHistory(next);
+      return next;
+    });
+  }, [messages]);
+
+  // Also persist chat list when model/personas change for current chat
+  useEffect(() => {
+    if (!currentChatId || messages.length === 0) return;
+    setChats(prev => {
+      const idx = prev.findIndex(c => c.id === currentChatId);
+      if (idx === -1) return prev;
+      const next = [...prev];
+      next[idx] = { ...next[idx], model, rpMode, userPersona, charPersona, updatedAt: Date.now() };
+      saveHistory(next);
+      return next;
+    });
+  }, [model, rpMode, userPersona, charPersona]);
+
+  // Auto-title generation after first exchange (user + assistant) using GPT-OSS 20B
+  useEffect(() => {
+    if (!currentChatId || messages.length < 2) return;
+    const chat = chats.find(c => c.id === currentChatId);
+    if (!chat) return;
+    if (chat.title !== 'New Chat' && chat.title !== 'Generating…') return;
+    if (hasTitledRef.current) return;
+    // Only title once per chat lifecycle
+    const hasUser = messages.some(m => m.role === 'user');
+    const hasAssistant = messages.some(m => m.role === 'assistant' && !m.error && m.content.trim().length > 10);
+    if (!hasUser || !hasAssistant) return;
+    hasTitledRef.current = true;
+    titleGenRef.current?.abort();
+    const ctrl = new AbortController();
+    titleGenRef.current = ctrl;
+    void (async () => {
+      setChats(prev => {
+        const n = [...prev]; const i = n.findIndex(c => c.id === currentChatId); if (i !== -1) { n[i] = { ...n[i], title: 'Generating…' }; saveHistory(n); } return n;
+      });
+      const title = await generateChatTitle({ messages, rpMode, userPersona, charPersona, signal: ctrl.signal });
+      if (ctrl.signal.aborted) return;
+      setChats(prev => {
+        const n = [...prev]; const i = n.findIndex(c => c.id === currentChatId); if (i !== -1) { n[i] = { ...n[i], title }; saveHistory(n); } return n;
+      });
+    })();
+  }, [messages, chats, currentChatId, rpMode, userPersona, charPersona]);
+
+  const openChat = (id: string) => {
+    const chat = chats.find(c => c.id === id);
+    if (!chat) return;
+    hasTitledRef.current = chat.title !== 'New Chat' && chat.title !== 'Generating…';
+    setCurrentChatId(id);
+    setMessages([...chat.messages]);
+    setModel(MODELS.find(m => m.id === chat.model) ? chat.model : MODELS[0].id);
+    setRpMode(!!chat.rpMode);
+    if (chat.userPersona) setUserPersona(chat.userPersona);
+    if (chat.charPersona) setCharPersona(chat.charPersona);
+    setShowHistory(false);
+    setEditingIndex(null);
+    autoScrollRef.current = true;
+    setTimeout(() => scrollToBottom('auto'), 50);
+  };
+  const startNewChat = () => {
+    hasTitledRef.current = false;
+    titleGenRef.current?.abort();
+    abortControllerRef.current?.abort();
+    setCurrentChatId(null);
+    setMessages([]);
+    setInput('');
+    localStorage.removeItem(DRAFT_KEY);
+    setShowHistory(false);
+    setEditingIndex(null);
+  };
+  const deleteChat = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const next = chats.filter(c => c.id !== id);
+    saveHistory(next);
+    setChats(next);
+    if (currentChatId === id) startNewChat();
+  };
 
   const generatePersona = async (kind: 'user' | 'char') => {
     const isActive = kind === 'user' ? genUser : genChar;
@@ -648,13 +828,22 @@ export default function App() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim()) return;
+    const raw = input.trim();
+    if (/^\/(history|chats)\s*$/i.test(raw)) {
+      setShowHistory(true);
+      setInput('');
+      localStorage.removeItem(DRAFT_KEY);
+      const ta = document.getElementById('chat-input') as HTMLTextAreaElement;
+      if (ta) ta.style.height = 'auto';
+      return;
+    }
 
     // If a response is in flight, interrupt it before sending the new message
     if (isLoading || isStreaming) {
       abortControllerRef.current?.abort();
     }
 
-    const userMessage: Message = { role: 'user', content: input.trim() };
+    const userMessage: Message = { role: 'user', content: raw };
     const newMessages = trimHistory([...messages, userMessage]);
     setMessages(newMessages);
     setInput('');
@@ -766,6 +955,72 @@ export default function App() {
           </AnimatePresence>
         </div>
       </header>
+
+      {/* History */}
+      <AnimatePresence>
+        {showHistory && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 pointer-events-auto"
+            onClick={() => setShowHistory(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.98, y: 8 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, y: 8 }}
+              transition={{ duration: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-xl max-h-[78vh] bg-[#0c0c0e] border border-zinc-800 rounded-sm shadow-2xl flex flex-col normal-case tracking-normal overflow-hidden"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800/80 shrink-0">
+                <h2 className="text-sm font-medium text-zinc-100 tracking-tight">History</h2>
+                <div className="flex items-center gap-2">
+                  <button onClick={startNewChat} className="px-3 py-1.5 text-xs font-medium bg-zinc-100 text-zinc-900 hover:bg-white rounded-sm transition-colors">New chat</button>
+                  <button onClick={() => setShowHistory(false)} className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors"><X size={14} /></button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto hide-scrollbar p-2 space-y-1">
+                {chats.length === 0 ? (
+                  <div className="py-16 text-center text-sm text-zinc-500 font-mono">No conversations yet</div>
+                ) : (
+                  chats
+                    .slice()
+                    .sort((a, b) => b.updatedAt - a.updatedAt)
+                    .map((c) => (
+                      <button
+                        key={c.id}
+                        onClick={() => openChat(c.id)}
+                        className={`w-full text-left px-4 py-3 rounded-sm border transition-colors group flex flex-col gap-1 ${currentChatId === c.id ? 'bg-zinc-800/50 border-zinc-700' : 'bg-zinc-900/30 border-zinc-800/60 hover:bg-zinc-800/40 hover:border-zinc-700/60'}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <span className="text-sm font-medium text-zinc-200 line-clamp-1 flex-1">{c.title}</span>
+                          <span className="shrink-0 flex items-center gap-1">
+                            <span className="font-mono text-[10px] text-zinc-500">{formatDate(c.updatedAt)}</span>
+                            <span
+                              role="button"
+                              onClick={(e) => deleteChat(c.id, e)}
+                              className="ml-1 p-1 opacity-0 group-hover:opacity-100 hover:text-red-400 text-zinc-600 transition-all"
+                              title="Delete"
+                            >
+                              <X size={12} />
+                            </span>
+                          </span>
+                        </div>
+                        <span className="text-xs text-zinc-500 line-clamp-1">{c.messages.filter(m => m.role !== 'system').slice(-1)[0]?.content.slice(0, 90) || '—'}</span>
+                        <span className="font-mono text-[10px] text-zinc-600">{c.model.split('/').pop()} · {c.messages.length} msgs {c.rpMode ? '· RP' : ''}</span>
+                      </button>
+                    ))
+                )}
+              </div>
+              <div className="px-6 py-3 border-t border-zinc-800/60 bg-[#09090b]/50 shrink-0">
+                <p className="font-mono text-[10px] text-zinc-600">Tip: type <span className="text-zinc-400">/history</span> or <span className="text-zinc-400">/chats</span> to open</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Contact Modal */}
       <AnimatePresence>
