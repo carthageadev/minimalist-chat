@@ -859,12 +859,14 @@ export default function App() {
       const accum = { content: '', reasoning: '' };
       const ensureStarted = () => {
         if (started) return;
+        if (controller.signal.aborted || abortControllerRef.current !== controller) return;
         started = true;
         setIsLoading(false);
         setIsStreaming(true);
         setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
       };
       const patchLast = () => {
+        if (controller.signal.aborted || abortControllerRef.current !== controller) return;
         setMessages((prev) => {
           const copy = [...prev];
           const i = copy.length - 1;
@@ -881,8 +883,8 @@ export default function App() {
         splitThink: !!(MODELS.find((m) => m.id === model) as any)?.splitThink && !(modelSupportsReasoningToggle(model) && !isReasoningOn(model)),
         signal: controller.signal,
         cb: {
-          onReasoning: (t) => { ensureStarted(); accum.reasoning += t; patchLast(); },
-          onContent: (t) => { ensureStarted(); accum.content += t; patchLast(); },
+          onReasoning: (t) => { if (controller.signal.aborted || abortControllerRef.current !== controller) return; ensureStarted(); accum.reasoning += t; patchLast(); },
+          onContent: (t) => { if (controller.signal.aborted || abortControllerRef.current !== controller) return; ensureStarted(); accum.content += t; patchLast(); },
           onError: (msg) => { throw new Error(msg); },
         },
       });
@@ -953,17 +955,23 @@ export default function App() {
       }
     }
 
-    // If a response is in flight, interrupt it before sending the new message
+    // If a response is in flight, cleanly cut it off before sending the next message
     if (isLoading || isStreaming) {
       abortControllerRef.current?.abort();
+      // Give the previous stream a tick to settle and ignore its stale callbacks
+      // (processChat guards with abortControllerRef checks)
     }
 
     const userMessage: Message = { role: 'user', content: raw };
-    const newMessages = trimHistory([...messages, userMessage]);
-    setMessages(newMessages);
+    let toSend: Message[] = [];
+    setMessages(prev => {
+      toSend = trimHistory([...prev, userMessage]);
+      return toSend;
+    });
     setInput('');
     setIsLoading(true);
     setIsStreaming(false);
+    setPendingDeleteIdx(null);
     
     // Reset textarea height after sending
     const textarea = document.getElementById('chat-input') as HTMLTextAreaElement;
@@ -971,7 +979,10 @@ export default function App() {
       textarea.style.height = 'auto';
     }
 
-    await processChat(newMessages);
+    // toSend is set synchronously inside the updater above
+    // Fallback if updater hasn't run yet (should not happen)
+    if (toSend.length === 0) toSend = trimHistory([...messages, userMessage]);
+    await processChat(toSend);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
