@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Send, Lock, Terminal, Maximize, Minimize, X, Square, Check, Brain, Sparkles, Pencil } from 'lucide-react';
+import { Send, Lock, Terminal, Maximize, Minimize, X, Square, Check, Brain, Sparkles, Pencil, RotateCw } from 'lucide-react';
 import { Streamdown } from 'streamdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -717,6 +717,23 @@ export default function App() {
     setMessages(next);
     setEditingIndex(null);
   };
+  const handleRegenerate = async (idx: number) => {
+    if (isLoading || isStreaming) return;
+    const target = messages[idx];
+    if (!target || target.role !== 'assistant') return;
+    abortControllerRef.current?.abort();
+    // Find last user before this assistant
+    let lastUserIdx = -1;
+    for (let i = idx - 1; i >= 0; i--) {
+      if (messages[i].role === 'user') { lastUserIdx = i; break; }
+    }
+    if (lastUserIdx === -1) return;
+    const truncated = messages.slice(0, lastUserIdx + 1);
+    setMessages(truncated);
+    setEditingIndex(null);
+    const toSend = trimHistory(truncated);
+    setTimeout(() => { void processChat(toSend); }, 180);
+  };
 
   const selectedLabel = MODELS.find((m) => m.id === model)?.label ?? model;
   const modelSupportsReasoningToggle = (id: string) =>
@@ -1404,6 +1421,16 @@ export default function App() {
                     <span>{msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}</span>
                     {canEdit && !isEditing && !isLoading && !isStreaming && (
                       <span className="flex items-center gap-0.5 -mr-1">
+                        {msg.role === 'assistant' && (
+                          <button
+                            onClick={() => handleRegenerate(idx)}
+                            className="opacity-60 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
+                            aria-label="Regenerate"
+                            title="Regenerate"
+                          >
+                            <RotateCw size={11} />
+                          </button>
+                        )}
                         <button
                           onClick={() => startEdit(idx)}
                           className="opacity-60 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
