@@ -877,8 +877,7 @@ export default function App() {
     >
       {/* Top Bar - Strictly functional, no yapping */}
       <header className="absolute top-0 w-full p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10 pointer-events-auto">
-        <div className="absolute inset-0 bg-[#09090b]/0 backdrop-blur-[6px] supports-[backdrop-filter]:bg-[#09090b]/5 border-b border-zinc-800/10 pointer-events-none" aria-hidden />
-        <div className="relative flex items-center gap-3">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => (rpMode ? setShowSetup(true) : setShowContact(true))}
             className="flex items-center gap-2 px-2 py-1 rounded-sm bg-transparent backdrop-blur-sm border border-zinc-800/20 hover:bg-zinc-800/20 hover:text-zinc-300 hover:border-zinc-700/30 transition-all focus:outline-none"
