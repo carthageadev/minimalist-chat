@@ -674,7 +674,7 @@ export default function App() {
             className={`flex items-center gap-2 transition-colors focus:outline-none ${showModelPicker ? 'text-zinc-300' : 'hover:text-zinc-300'}`}
           >
             <span>{selectedLabel}</span>
-            <Terminal size={12} className={showModelPicker ? 'text-zinc-100' : 'text-zinc-600'} />
+            <Terminal size={12} className={`transition-colors ${showModelPicker ? 'text-zinc-300' : 'text-zinc-600'}`} />
           </button>
 
           <AnimatePresence>
