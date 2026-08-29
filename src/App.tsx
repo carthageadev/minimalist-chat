@@ -153,10 +153,11 @@ Character control rules (strict):
 - NEVER speak, act, think, or decide anything on behalf of {{user}}.
 - Never write {{user}}'s dialogue or actions; always leave room for them to respond.`;
 
-const TITLE_MODEL = 'openai/gpt-oss-20b';
+const TITLE_MODEL = 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning';
 const MODELS = [
   { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano', reasoningToggle: true },
   { id: 'poolside/laguna-xs-2.1', label: 'Laguna 2.1 XS', reasoningToggle: true },
+  { id: 'openai/gpt-oss-20b', label: 'GPT-OSS' },
   { id: 'Lorbus/Qwen3.6-27B-int4-AutoRound', label: 'Qwen 3.6', baseUrl: 'https://hermes.ai.unturf.com/v1', splitThink: true, reasoningToggle: true },
   { id: 'moonshotai/kimi-k3', label: 'Kimi K3', reasoningToggle: true },
 ];
@@ -198,7 +199,7 @@ const loadHistory = (): ChatSession[] => {
 const saveHistory = (chats: ChatSession[]) => localStorage.setItem(HISTORY_KEY, JSON.stringify(chats.filter(c => c.rpMode)));
 const formatDate = (ts: number) => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
-// Title generation via GPT-OSS 20B (removed from picker, used only here)
+// Title generation uses Nemotron with thinking disabled.
 const generateChatTitle = async (opts: { messages: Message[]; rpMode: boolean; userPersona: string; charPersona: string; signal?: AbortSignal }): Promise<string> => {
   const { messages, rpMode, userPersona, charPersona } = opts;
   const preview = messages.slice(0, 4).map(m => `${m.role}: ${m.content.slice(0, 400)}`).join('\n---\n');
@@ -214,6 +215,7 @@ const generateChatTitle = async (opts: { messages: Message[]; rpMode: boolean; u
       model: TITLE_MODEL,
       rp: false,
       isPersona: false,
+      reasoningOff: true,
     });
     // Title model uses low temp, small max_tokens — override
     (body as any).temperature = 0.7;
@@ -333,7 +335,7 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [model, setModel] = useState<string>(() => {
     const stored = localStorage.getItem('selected-model');
-    if (stored === TITLE_MODEL || !MODELS.some((m) => m.id === stored)) return MODELS[0].id;
+    if (!MODELS.some((m) => m.id === stored)) return MODELS[0].id;
     return stored || MODELS[0].id;
   });
   const [showModelPicker, setShowModelPicker] = useState(false);
