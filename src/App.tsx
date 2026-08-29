@@ -676,6 +676,7 @@ export default function App() {
 
   const startEdit = (idx: number) => {
     if (isLoading || isStreaming) return;
+    setPendingDeleteIdx(null);
     setEditingIndex(idx);
     setEditDraft(messages[idx]?.content ?? '');
     setTimeout(() => editTextareaRef.current?.focus(), 30);
@@ -721,6 +722,7 @@ export default function App() {
     if (isLoading || isStreaming) return;
     const target = messages[idx];
     if (!target || target.role !== 'assistant') return;
+    setPendingDeleteIdx(null);
     abortControllerRef.current?.abort();
     // Find last user before this assistant
     let lastUserIdx = -1;
@@ -745,6 +747,12 @@ export default function App() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [pendingDeleteIdx, setPendingDeleteIdx] = useState<number | null>(null);
+  useEffect(() => {
+    if (pendingDeleteIdx === null) return;
+    const t = setTimeout(() => setPendingDeleteIdx(null), 3000);
+    return () => clearTimeout(t);
+  }, [pendingDeleteIdx]);
 
   // Phones/tablets (coarse pointer) get ChatGPT-mobile behaviour: the keyboard
   // Enter key inserts a newline, and only the on-screen Send button sends.
@@ -1439,14 +1447,36 @@ export default function App() {
                         >
                           <Pencil size={11} />
                         </button>
-                        <button
-                          onClick={() => deleteMessage(idx)}
-                          className="opacity-60 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 rounded-sm"
-                          aria-label="Delete message"
-                          title="Delete"
-                        >
-                          <X size={11} />
-                        </button>
+                        {pendingDeleteIdx === idx ? (
+                          <>
+                            <motion.span
+                              initial={{ opacity: 0, x: -4 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -4 }}
+                              transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+                              className="text-[10px] font-mono text-zinc-500 ml-1"
+                            >
+                              are you sure?
+                            </motion.span>
+                            <button
+                              onClick={() => { deleteMessage(idx); setPendingDeleteIdx(null); }}
+                              className="p-1 text-red-400 bg-red-500/15 border border-red-500/30 rounded-sm transition-colors"
+                              aria-label="Confirm delete"
+                              title="Confirm delete"
+                            >
+                              <X size={11} />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setPendingDeleteIdx(idx)}
+                            className="opacity-60 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 rounded-sm"
+                            aria-label="Delete message"
+                            title="Delete"
+                          >
+                            <X size={11} />
+                          </button>
+                        )}
                       </span>
                     )}
                   </span>
