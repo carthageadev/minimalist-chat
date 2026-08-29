@@ -753,6 +753,17 @@ export default function App() {
     const t = setTimeout(() => setPendingDeleteIdx(null), 3000);
     return () => clearTimeout(t);
   }, [pendingDeleteIdx]);
+  useEffect(() => {
+    if (pendingDeleteIdx === null) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest(`[data-pending-delete="${pendingDeleteIdx}"]`) && !target.closest(`[data-delete-trigger="${pendingDeleteIdx}"]`)) {
+        setPendingDeleteIdx(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [pendingDeleteIdx]);
 
   // Phones/tablets (coarse pointer) get ChatGPT-mobile behaviour: the keyboard
   // Enter key inserts a newline, and only the on-screen Send button sends.
@@ -1439,36 +1450,37 @@ export default function App() {
                   <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider flex items-center justify-between gap-2">
                     <span>{msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}</span>
                     {canEdit && !isEditing && !isLoading && !isStreaming && (
-                      <span className="flex items-center gap-0.5 -mr-1">
-                        {msg.role === 'assistant' && (
-                          <button
-                            onClick={() => handleRegenerate(idx)}
-                            className="opacity-60 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
-                            aria-label="Regenerate"
-                            title="Regenerate"
-                          >
-                            <RotateCw size={11} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => startEdit(idx)}
-                          className="opacity-60 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
-                          aria-label="Edit message"
-                          title="Edit"
-                        >
-                          <Pencil size={11} />
-                        </button>
-                        {pendingDeleteIdx === idx ? (
-                          <>
-                            <motion.span
-                              initial={{ opacity: 0, x: -4 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              exit={{ opacity: 0, x: -4 }}
-                              transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
-                              className="text-[10px] font-mono lowercase text-zinc-400 ml-1 px-1.5 py-0.5 bg-zinc-900/20 backdrop-blur-sm rounded-none"
+                      <span className="relative flex items-center gap-0.5 -mr-1 min-w-[72px] justify-end">
+                        <span className={`flex items-center gap-0.5 ${pendingDeleteIdx === idx ? 'opacity-0 pointer-events-none' : ''}`}>
+                          {msg.role === 'assistant' && (
+                            <button
+                              onClick={() => handleRegenerate(idx)}
+                              className="opacity-60 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
+                              aria-label="Regenerate"
+                              title="Regenerate"
                             >
-                              are you sure?
-                            </motion.span>
+                              <RotateCw size={11} />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => startEdit(idx)}
+                            className="opacity-60 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
+                            aria-label="Edit message"
+                            title="Edit"
+                          >
+                            <Pencil size={11} />
+                          </button>
+                        </span>
+                        {pendingDeleteIdx === idx ? (
+                          <motion.span
+                            data-pending-delete={idx}
+                            initial={{ opacity: 0, x: 4 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 4 }}
+                            transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+                            className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-zinc-900/20 backdrop-blur-sm px-1 py-0.5 rounded-none"
+                          >
+                            <span className="text-[10px] font-mono lowercase text-zinc-400">are you sure?</span>
                             <button
                               onClick={() => { deleteMessage(idx); setPendingDeleteIdx(null); }}
                               className="p-1 text-red-400 bg-red-500/15 backdrop-blur-sm border-0 rounded-none transition-colors"
@@ -1477,9 +1489,10 @@ export default function App() {
                             >
                               <X size={11} />
                             </button>
-                          </>
+                          </motion.span>
                         ) : (
                           <button
+                            data-delete-trigger={idx}
                             onClick={() => setPendingDeleteIdx(idx)}
                             className="opacity-60 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 rounded-sm"
                             aria-label="Delete message"
