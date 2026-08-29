@@ -876,11 +876,12 @@ export default function App() {
       className="fixed inset-0 bg-[#09090b] text-zinc-100 font-sans selection:bg-zinc-800 flex flex-col overflow-hidden"
     >
       {/* Top Bar - Strictly functional, no yapping */}
-      <header className="absolute top-0 w-full p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10 pointer-events-auto bg-[#09090b]/40 backdrop-blur-2xl supports-[backdrop-filter]:bg-[#09090b]/30 border-b border-zinc-900/30">
-        <div className="flex items-center gap-3">
+      <header className="absolute top-0 w-full p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10 pointer-events-auto">
+        <div className="absolute inset-0 bg-[#09090b]/0 backdrop-blur-[6px] supports-[backdrop-filter]:bg-[#09090b]/5 border-b border-zinc-800/10 pointer-events-none" aria-hidden />
+        <div className="relative flex items-center gap-3">
           <button
             onClick={() => (rpMode ? setShowSetup(true) : setShowContact(true))}
-            className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-zinc-900/30 backdrop-blur-xl border border-zinc-800/30 hover:bg-zinc-800/40 hover:text-zinc-300 hover:border-zinc-700/40 transition-all focus:outline-none"
+            className="flex items-center gap-2 px-2 py-1 rounded-sm bg-transparent backdrop-blur-sm border border-zinc-800/20 hover:bg-zinc-800/20 hover:text-zinc-300 hover:border-zinc-700/30 transition-all focus:outline-none"
           >
             <Lock size={12} className="text-zinc-600" />
             <span>{rpMode ? 'Setup' : 'E2E Channel'}</span>
@@ -888,7 +889,7 @@ export default function App() {
           
           <button
             onClick={toggleFullscreen}
-            className="p-1.5 hover:text-zinc-300 transition-colors focus:outline-none text-zinc-600 hover:bg-zinc-800/40 backdrop-blur-xl rounded-full border border-transparent hover:border-zinc-800/30"
+            className="relative p-1.5 hover:text-zinc-300 transition-colors focus:outline-none text-zinc-600 hover:bg-zinc-800/20 backdrop-blur-sm rounded-sm border border-transparent hover:border-zinc-800/20"
             aria-label="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
@@ -898,7 +899,7 @@ export default function App() {
         <div className="relative flex items-center">
           <button
             onClick={() => setShowModelPicker((v) => !v)}
-            className={`flex items-center gap-2 px-2.5 py-1 rounded-full backdrop-blur-xl border transition-all focus:outline-none ${showModelPicker ? 'bg-zinc-800/50 border-zinc-700/40 text-zinc-300' : 'bg-zinc-900/30 border-zinc-800/30 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/40 hover:border-zinc-700/40'}`}
+            className={`relative flex items-center gap-2 px-2 py-1 rounded-sm backdrop-blur-sm border transition-all focus:outline-none ${showModelPicker ? 'bg-zinc-800/30 border-zinc-700/30 text-zinc-300' : 'bg-transparent border-zinc-800/20 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/20 hover:border-zinc-700/20'}`}
           >
             <span>{selectedLabel}</span>
             <Terminal size={12} className={`transition-colors ${showModelPicker ? 'text-zinc-300' : 'text-zinc-600'}`} />
