@@ -95,6 +95,9 @@ export function buildRequestBody(opts: {
     // (per NVIDIA's own docs). thinking_mode flips with the reasoning toggle.
     body.temperature = 1;
     body.top_p = 0.95;
+    // The hosted trial deployment rejects consecutive turns when reserving the
+    // global 32k output budget. Keep MiniMax's request within its stable range.
+    body.max_tokens = 4096;
     body.chat_template_kwargs = { thinking_mode: opts.reasoningOff ? 'disabled' : 'enabled' };
   }
 
@@ -119,8 +122,6 @@ export interface StreamCallbacks {
   onError?: (msg: string) => void;
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
 export async function streamChat(opts: {
   body: Record<string, unknown>;
   baseUrl?: string;
@@ -131,41 +132,30 @@ export async function streamChat(opts: {
   const { body, signal, cb } = opts;
   const baseUrl = opts.baseUrl || BASE_URL;
 
-  const MAX_TRIES = 3;
-  let res: Response | null = null;
-  let lastErr: string | null = null;
-
-  for (let attempt = 0; attempt < MAX_TRIES; attempt++) {
-    if (attempt > 0) await sleep(2500 * attempt);
-    try {
-      // NVIDIA's API sends no CORS preflight headers, so the browser can't call
-      // it directly. Route every model through our same-origin /api/chat proxy
-      // (Hermes has proper CORS but uses the same path for uniformity). The proxy
-      // injects the key server-side, so it never ships in the public bundle.
-      res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ upstream: `${baseUrl}/chat/completions`, payload: body }),
-        signal,
-      });
-      if (res.ok) break;
-      let msg = `HTTP ${res.status}`;
-      try {
-        const j = await res.json();
-        const detail = j?.error || (typeof j?.detail === 'string' ? j.detail : null);
-        if (detail) msg = `${res.status} — ${detail}`;
-      } catch {}
-      lastErr = msg;
-      if (res.status !== 429) throw new Error(msg);
-    } catch (e: any) {
-      if (e?.name === 'AbortError') throw e;
-      if (lastErr) throw new Error(lastErr);
-      throw e;
-    }
+  // NVIDIA's API sends no CORS preflight headers, so the browser can't call
+  // it directly. Route every model through our same-origin /api/chat proxy
+  // (Hermes has proper CORS but uses the same path for uniformity). The proxy
+  // injects the key server-side, so it never ships in the public bundle.
+  let res: Response;
+  try {
+    res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ upstream: `${baseUrl}/chat/completions`, payload: body }),
+      signal,
+    });
+  } catch (e: any) {
+    if (e?.name === 'AbortError') throw e;
+    throw e;
   }
 
-  if (!res || !res.ok) {
-    const msg = lastErr || 'Failed to get a response from the AI.';
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try {
+      const j = await res.json();
+      const detail = j?.error || (typeof j?.detail === 'string' ? j.detail : null);
+      if (detail) msg = `${res.status} — ${detail}`;
+    } catch {}
     cb.onError?.(msg);
     throw new Error(msg);
   }
