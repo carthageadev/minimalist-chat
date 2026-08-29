@@ -157,7 +157,6 @@ const TITLE_MODEL = 'openai/gpt-oss-20b';
 const MODELS = [
   { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano', reasoningToggle: true },
   { id: 'poolside/laguna-xs-2.1', label: 'Laguna 2.1 XS', reasoningToggle: true },
-  { id: 'minimaxai/minimax-m3', label: 'MiniMax M3', reasoningToggle: true },
   { id: 'Lorbus/Qwen3.6-27B-int4-AutoRound', label: 'Qwen 3.6', baseUrl: 'https://hermes.ai.unturf.com/v1', splitThink: true, reasoningToggle: true },
   { id: 'moonshotai/kimi-k3', label: 'Kimi K3', reasoningToggle: true },
 ];
@@ -334,7 +333,7 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [model, setModel] = useState<string>(() => {
     const stored = localStorage.getItem('selected-model');
-    if (stored === TITLE_MODEL) return MODELS[0].id;
+    if (stored === TITLE_MODEL || !MODELS.some((m) => m.id === stored)) return MODELS[0].id;
     return stored || MODELS[0].id;
   });
   const [showModelPicker, setShowModelPicker] = useState(false);

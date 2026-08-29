@@ -90,17 +90,6 @@ export function buildRequestBody(opts: {
     body.chat_template_kwargs = { enable_thinking: !opts.reasoningOff };
   }
 
-  if (model.startsWith('minimaxai/')) {
-    // MiniMax-m3 emits its chain-of-thought only when this kwarg is present
-    // (per NVIDIA's own docs). thinking_mode flips with the reasoning toggle.
-    body.temperature = 1;
-    body.top_p = 0.95;
-    // The hosted trial deployment rejects consecutive turns when reserving the
-    // global 32k output budget. Keep MiniMax's request within its stable range.
-    body.max_tokens = 4096;
-    body.chat_template_kwargs = { thinking_mode: opts.reasoningOff ? 'disabled' : 'enabled' };
-  }
-
   if (rp) {
     body.temperature = 1;
   }
