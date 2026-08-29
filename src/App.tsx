@@ -631,6 +631,14 @@ export default function App() {
       // Assistant edit is local — no regeneration, just keep edited content
     }
   };
+  const deleteMessage = (idx: number) => {
+    if (isLoading || isStreaming) return;
+    abortControllerRef.current?.abort();
+    // Rollback: remove this message and everything after it
+    const next = messages.slice(0, idx);
+    setMessages(next);
+    setEditingIndex(null);
+  };
 
   const selectedLabel = MODELS.find((m) => m.id === model)?.label ?? model;
   const modelSupportsReasoningToggle = (id: string) =>
@@ -1001,7 +1009,7 @@ export default function App() {
                             <span
                               role="button"
                               onClick={(e) => deleteChat(c.id, e)}
-                              className="ml-1 p-1 opacity-0 group-hover:opacity-100 hover:text-red-400 text-zinc-600 transition-all"
+                              className="ml-1 p-1 opacity-60 md:opacity-0 md:group-hover:opacity-100 hover:text-red-400 text-zinc-600 transition-all"
                               title="Delete"
                             >
                               <X size={12} />
@@ -1249,14 +1257,24 @@ export default function App() {
                   <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider flex items-center justify-between gap-2">
                     <span>{msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}</span>
                     {canEdit && !isEditing && !isLoading && !isStreaming && (
-                      <button
-                        onClick={() => startEdit(idx)}
-                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 -mr-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
-                        aria-label="Edit message"
-                        title="Edit"
-                      >
-                        <Pencil size={11} />
-                      </button>
+                      <span className="flex items-center gap-0.5 -mr-1">
+                        <button
+                          onClick={() => startEdit(idx)}
+                          className="opacity-60 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
+                          aria-label="Edit message"
+                          title="Edit"
+                        >
+                          <Pencil size={11} />
+                        </button>
+                        <button
+                          onClick={() => deleteMessage(idx)}
+                          className="opacity-60 md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 rounded-sm"
+                          aria-label="Delete message"
+                          title="Delete"
+                        >
+                          <X size={11} />
+                        </button>
+                      </span>
                     )}
                   </span>
                   <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? 'text-zinc-400' : msg.role === 'system' ? 'text-blue-400/80' : msg.error ? 'text-red-400/80' : 'text-zinc-100'} markdown-body`}>
@@ -1387,7 +1405,7 @@ export default function App() {
 
                             return (
                               <div className="relative group mt-4 mb-6">
-                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                <div className="absolute top-2 right-2 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-10">
                                   <CopyButton text={codeString} />
                                 </div>
                                 <div className="rounded-sm overflow-hidden border border-zinc-800/80 shadow-xl">
