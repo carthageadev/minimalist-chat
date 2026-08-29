@@ -1454,13 +1454,13 @@ export default function App() {
                               animate={{ opacity: 1, x: 0 }}
                               exit={{ opacity: 0, x: -4 }}
                               transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
-                              className="text-[10px] font-mono text-zinc-500 ml-1"
+                              className="text-[10px] font-mono lowercase text-zinc-400 ml-1 px-1.5 py-0.5 bg-zinc-900/20 backdrop-blur-sm rounded-none"
                             >
                               are you sure?
                             </motion.span>
                             <button
                               onClick={() => { deleteMessage(idx); setPendingDeleteIdx(null); }}
-                              className="p-1 text-red-400 bg-red-500/15 border border-red-500/30 rounded-sm transition-colors"
+                              className="p-1 text-red-400 bg-red-500/15 backdrop-blur-sm border-0 rounded-none transition-colors"
                               aria-label="Confirm delete"
                               title="Confirm delete"
                             >
