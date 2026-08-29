@@ -1006,7 +1006,7 @@ export default function App() {
         <div className="flex items-center gap-3">
           <button
             onClick={() => (rpMode ? setShowSetup(true) : setShowContact(true))}
-            className="flex items-center gap-2 px-2 py-1 rounded-sm bg-transparent backdrop-blur-sm border border-zinc-800/20 hover:bg-zinc-800/20 hover:text-zinc-300 hover:border-zinc-700/30 transition-all focus:outline-none"
+            className="flex items-center gap-2 px-2 py-1 rounded-none bg-zinc-900/20 backdrop-blur-sm border-0 hover:bg-zinc-800/30 hover:text-zinc-300 transition-all focus:outline-none"
           >
             <Lock size={12} className="text-zinc-600" />
             <span>{rpMode ? 'Setup' : 'E2E Channel'}</span>
@@ -1014,7 +1014,7 @@ export default function App() {
           
           <button
             onClick={toggleFullscreen}
-            className="relative p-1.5 hover:text-zinc-300 transition-colors focus:outline-none text-zinc-600 hover:bg-zinc-800/20 backdrop-blur-sm rounded-sm border border-transparent hover:border-zinc-800/20"
+            className="relative p-1.5 hover:text-zinc-300 transition-colors focus:outline-none text-zinc-600 hover:bg-zinc-800/30 backdrop-blur-sm rounded-none border-0"
             aria-label="Toggle Fullscreen"
           >
             {isFullscreen ? <Minimize size={12} /> : <Maximize size={12} />}
@@ -1024,7 +1024,7 @@ export default function App() {
         <div className="relative flex items-center">
           <button
             onClick={() => setShowModelPicker((v) => !v)}
-            className={`relative flex items-center gap-2 px-2 py-1 rounded-sm backdrop-blur-sm border transition-all focus:outline-none ${showModelPicker ? 'bg-zinc-800/30 border-zinc-700/30 text-zinc-300' : 'bg-transparent border-zinc-800/20 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/20 hover:border-zinc-700/20'}`}
+            className={`relative flex items-center gap-2 px-2 py-1 rounded-none backdrop-blur-sm border-0 transition-all focus:outline-none ${showModelPicker ? 'bg-zinc-800/40 text-zinc-300' : 'bg-zinc-900/20 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/30'}`}
           >
             <span>{selectedLabel}</span>
             <Terminal size={12} className={`transition-colors ${showModelPicker ? 'text-zinc-300' : 'text-zinc-600'}`} />
@@ -1042,7 +1042,7 @@ export default function App() {
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -6 }}
                   transition={{ duration: 0.1, ease: "easeOut" }}
-                  className="absolute right-0 top-full mt-3 z-30 w-56 bg-[#0c0c0e] border border-zinc-800 rounded-sm shadow-2xl py-1.5 normal-case tracking-normal"
+                  className="absolute right-0 top-full mt-3 z-30 w-56 bg-[#0c0c0e] border border-zinc-800 rounded-none shadow-2xl py-1.5 normal-case tracking-normal"
                 >
                   {MODELS.map((m) => (
                     <button
