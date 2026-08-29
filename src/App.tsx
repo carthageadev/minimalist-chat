@@ -187,9 +187,16 @@ const DRAFT_KEY = 'draft-input-v2';
 
 const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const loadHistory = (): ChatSession[] => {
-  try { const raw = localStorage.getItem(HISTORY_KEY); return raw ? JSON.parse(raw) : []; } catch { return []; }
+  try {
+    const raw = localStorage.getItem(HISTORY_KEY);
+    const all: ChatSession[] = raw ? JSON.parse(raw) : [];
+    // History is RP-only — drop any legacy normal-mode chats
+    const filtered = all.filter(c => c.rpMode);
+    if (filtered.length !== all.length) localStorage.setItem(HISTORY_KEY, JSON.stringify(filtered));
+    return filtered;
+  } catch { return []; }
 };
-const saveHistory = (chats: ChatSession[]) => localStorage.setItem(HISTORY_KEY, JSON.stringify(chats));
+const saveHistory = (chats: ChatSession[]) => localStorage.setItem(HISTORY_KEY, JSON.stringify(chats.filter(c => c.rpMode)));
 const formatDate = (ts: number) => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
 // Title generation via GPT-OSS 20B (removed from picker, used only here)
@@ -303,16 +310,13 @@ const GREETINGS = [
 export default function App() {
   const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
   const [chats, setChats] = useState<ChatSession[]>(() => loadHistory());
-  const [currentChatId, setCurrentChatId] = useState<string | null>(() => localStorage.getItem(CURRENT_CHAT_KEY));
+  // Refresh always lands on home — don't auto-restore last chat. History is
+  // only entered explicitly via /history or /chats in RP mode.
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [messages, setMessages] = useState<Message[]>(() => {
-    try {
-      const id = localStorage.getItem(CURRENT_CHAT_KEY);
-      if (!id) return [];
-      const h = loadHistory();
-      return h.find(c => c.id === id)?.messages ?? [];
-    } catch { return []; }
-  });
+  const [messages, setMessages] = useState<Message[]>(() => []);
+  // Normal mode is ephemeral — only persist the draft while RP is off briefly
+  // on refresh we start clean; draft restores only if you re-enter before sending
   const [input, setInput] = useState(() => localStorage.getItem(DRAFT_KEY) || '');
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -336,6 +340,22 @@ export default function App() {
     setRpReveal(true);
     const t = setTimeout(() => setRpReveal(false), 5000);
     return () => clearTimeout(t);
+  }, [rpMode]);
+
+  // Switching modes always lands on home — never carry a chat across modes
+  const prevRpRef = useRef(rpMode);
+  useEffect(() => {
+    if (prevRpRef.current !== rpMode) {
+      prevRpRef.current = rpMode;
+      // Don't auto-restore; go to home. History is only via /chats in RP.
+      hasTitledRef.current = false;
+      titleGenRef.current?.abort();
+      abortControllerRef.current?.abort();
+      setCurrentChatId(null);
+      setMessages([]);
+      setEditingIndex(null);
+      setShowHistory(false);
+    }
   }, [rpMode]);
 
   const showRpRing = rpMode && (rpReveal || isLoading || isStreaming);
@@ -362,8 +382,9 @@ export default function App() {
     else localStorage.removeItem(CURRENT_CHAT_KEY);
   }, [currentChatId]);
 
-  // Keep chats in sync with current messages (create chat on first real message)
+  // Keep chats in sync with current messages — RP only. Normal mode is ephemeral.
   useEffect(() => {
+    if (!rpMode) return;
     if (messages.length === 0) return;
     // Don't persist system-only search noise
     const hasReal = messages.some(m => m.role === 'user' || m.role === 'assistant');
@@ -392,8 +413,9 @@ export default function App() {
     });
   }, [messages]);
 
-  // Also persist chat list when model/personas change for current chat
+  // Also persist chat list when model/personas change for current chat — RP only
   useEffect(() => {
+    if (!rpMode) return;
     if (!currentChatId || messages.length === 0) return;
     setChats(prev => {
       const idx = prev.findIndex(c => c.id === currentChatId);
@@ -405,8 +427,9 @@ export default function App() {
     });
   }, [model, rpMode, userPersona, charPersona]);
 
-  // Auto-title generation after first exchange (user + assistant) using GPT-OSS 20B
+  // Auto-title generation after first exchange (user + assistant) using GPT-OSS 20B — RP only
   useEffect(() => {
+    if (!rpMode) return;
     if (!currentChatId || messages.length < 2) return;
     const chat = chats.find(c => c.id === currentChatId);
     if (!chat) return;
@@ -838,6 +861,14 @@ export default function App() {
     if (!input.trim()) return;
     const raw = input.trim();
     if (/^\/(history|chats)\s*$/i.test(raw)) {
+      if (!rpMode) {
+        // Normal mode: command silently does nothing — keep RP secret
+        setInput('');
+        localStorage.removeItem(DRAFT_KEY);
+        const ta = document.getElementById('chat-input') as HTMLTextAreaElement;
+        if (ta) ta.style.height = 'auto';
+        return;
+      }
       setShowHistory(true);
       setInput('');
       localStorage.removeItem(DRAFT_KEY);
