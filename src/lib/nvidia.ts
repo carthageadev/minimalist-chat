@@ -69,7 +69,8 @@ export function buildRequestBody(opts: {
     systemContent += personaBlock;
   }
 
-  const formattedMessages = isPersona ? messages : [{ role: 'system' as const, content: systemContent }, ...messages];
+  const cleanMessages = messages.map(m => ({ role: m.role, content: m.content }));
+  const formattedMessages = isPersona ? cleanMessages : [{ role: 'system' as const, content: systemContent }, ...cleanMessages];
 
   const body: Record<string, unknown> = {
     model,

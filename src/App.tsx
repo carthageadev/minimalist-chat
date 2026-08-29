@@ -452,6 +452,7 @@ export default function App() {
   // Auto-title generation after first exchange (user + assistant) using GPT-OSS 20B — RP only
   useEffect(() => {
     if (!rpMode) return;
+    if (isLoading || isStreaming) return;
     if (!currentChatId || messages.length < 2) return;
     const chat = chats.find(c => c.id === currentChatId);
     if (!chat) return;
@@ -470,12 +471,18 @@ export default function App() {
         const n = [...prev]; const i = n.findIndex(c => c.id === currentChatId); if (i !== -1) { n[i] = { ...n[i], title: 'Generating…' }; saveHistory(n); } return n;
       });
       const title = await generateChatTitle({ messages, rpMode, userPersona, charPersona, signal: ctrl.signal });
-      if (ctrl.signal.aborted) return;
+      if (ctrl.signal.aborted) {
+        hasTitledRef.current = false;
+        setChats(prev => {
+          const n = [...prev]; const i = n.findIndex(c => c.id === currentChatId); if (i !== -1 && n[i].title === 'Generating…') { n[i] = { ...n[i], title: 'New Chat' }; saveHistory(n); } return n;
+        });
+        return;
+      }
       setChats(prev => {
         const n = [...prev]; const i = n.findIndex(c => c.id === currentChatId); if (i !== -1) { n[i] = { ...n[i], title }; saveHistory(n); } return n;
       });
     })();
-  }, [messages, chats, currentChatId, rpMode, userPersona, charPersona]);
+  }, [messages, chats, currentChatId, rpMode, userPersona, charPersona, isLoading, isStreaming]);
 
   const openChat = (id: string) => {
     const chat = chats.find(c => c.id === id);
@@ -843,6 +850,7 @@ export default function App() {
   const processChat = async (currentMessages: Message[]) => {
     // Interrupt any in-flight stream before starting a new one
     abortControllerRef.current?.abort();
+    titleGenRef.current?.abort();
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
