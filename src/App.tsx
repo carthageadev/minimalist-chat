@@ -307,6 +307,13 @@ const GREETINGS = [
   "Unleash your worst spelling. I'll still find it."
 ];
 
+const COMMANDS: { name: string; desc: string }[] = [
+  { name: "/history", desc: "Browse past conversations" },
+  { name: "/chats", desc: "Browse past conversations" },
+  { name: "/new", desc: "Start new chat" },
+  { name: "/clear", desc: "Clear current chat" },
+];
+
 export default function App() {
   const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
   const [chats, setChats] = useState<ChatSession[]>(() => loadHistory());
@@ -320,6 +327,7 @@ export default function App() {
   // Normal mode is ephemeral — only persist the draft while RP is off briefly
   // on refresh we start clean; draft restores only if you re-enter before sending
   const [input, setInput] = useState(() => localStorage.getItem(DRAFT_KEY) || '');
+  const [cmdIndex, setCmdIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [showContact, setShowContact] = useState(false);
@@ -359,6 +367,18 @@ export default function App() {
       setShowHistory(false);
     }
   }, [rpMode]);
+
+  const filteredCmds = useMemo(() => {
+    const t = input.trimStart();
+    if (!t.startsWith('/')) return [];
+    const q = t.toLowerCase().split(' ')[0];
+    let cmds = COMMANDS;
+    if (!rpMode) cmds = cmds.filter(c => c.name !== '/history' && c.name !== '/chats');
+    if (q === '/') return cmds;
+    return cmds.filter(c => c.name.startsWith(q));
+  }, [input, rpMode]);
+  const showCmdPalette = filteredCmds.length > 0 && input.trimStart().startsWith('/');
+  useEffect(() => { setCmdIndex(0); }, [input]);
 
   const showRpRing = rpMode && (rpReveal || isLoading || isStreaming);
   const [showSetup, setShowSetup] = useState(false);
@@ -504,6 +524,24 @@ export default function App() {
       return next;
     });
     setEditingTitleId(null);
+  };
+  const executeCommand = (name: string) => {
+    const cmd = name.toLowerCase();
+    if (cmd === '/history' || cmd === '/chats') {
+      if (!rpMode) { setInput(''); localStorage.removeItem(DRAFT_KEY); return; }
+      setShowHistory(true);
+      setInput('');
+      localStorage.removeItem(DRAFT_KEY);
+      const ta = document.getElementById('chat-input') as HTMLTextAreaElement;
+      if (ta) ta.style.height = 'auto';
+      return;
+    }
+    if (cmd === '/new' || cmd === '/clear') {
+      startNewChat();
+      setInput('');
+      localStorage.removeItem(DRAFT_KEY);
+      return;
+    }
   };
 
   const generatePersona = async (kind: 'user' | 'char') => {
@@ -877,21 +915,17 @@ export default function App() {
     e.preventDefault();
     if (!input.trim()) return;
     const raw = input.trim();
-    if (/^\/(history|chats)\s*$/i.test(raw)) {
-      if (!rpMode) {
-        // Normal mode: command silently does nothing — keep RP secret
-        setInput('');
-        localStorage.removeItem(DRAFT_KEY);
-        const ta = document.getElementById('chat-input') as HTMLTextAreaElement;
-        if (ta) ta.style.height = 'auto';
+    // Slash commands — Discord-style
+    if (raw.startsWith('/')) {
+      const lower = raw.toLowerCase();
+      const exact = COMMANDS.find(c => c.name === lower);
+      if (exact) { executeCommand(exact.name); return; }
+      if (showCmdPalette && filteredCmds[cmdIndex]) { executeCommand(filteredCmds[cmdIndex].name); return; }
+      // Unknown slash — silently ignore (don't send as chat)
+      if (raw.startsWith('/')) {
+        // If user typed "/" alone, show palette; don't send
         return;
       }
-      setShowHistory(true);
-      setInput('');
-      localStorage.removeItem(DRAFT_KEY);
-      const ta = document.getElementById('chat-input') as HTMLTextAreaElement;
-      if (ta) ta.style.height = 'auto';
-      return;
     }
 
     // If a response is in flight, interrupt it before sending the new message
@@ -916,9 +950,45 @@ export default function App() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (showCmdPalette) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setCmdIndex(i => (i + 1) % filteredCmds.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setCmdIndex(i => (i - 1 + filteredCmds.length) % filteredCmds.length);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setInput('');
+        const ta = document.getElementById('chat-input') as HTMLTextAreaElement;
+        if (ta) ta.style.height = 'auto';
+        return;
+      }
+      if ((e.key === 'Enter' && !e.shiftKey) || e.key === 'Tab') {
+        // Select highlighted command
+        if (filteredCmds[cmdIndex]) {
+          e.preventDefault();
+          executeCommand(filteredCmds[cmdIndex].name);
+          return;
+        }
+      }
+    }
     // On desktop: Enter sends, Shift+Enter = newline. On mobile/touch: Enter is
     // a newline (let the default happen); sending is done via the Send button.
     if (e.key === 'Enter' && !e.shiftKey && !isMobile) {
+      // If palette is open with a partial, Enter should pick the command, not send raw text
+      if (showCmdPalette && filteredCmds.length > 0) {
+        e.preventDefault();
+        const raw = input.trim().toLowerCase();
+        const exact = COMMANDS.find(c => c.name === raw);
+        if (exact) executeCommand(exact.name);
+        else if (filteredCmds[cmdIndex]) executeCommand(filteredCmds[cmdIndex].name);
+        return;
+      }
       e.preventDefault();
       handleSubmit(e as unknown as React.FormEvent);
     }
@@ -1610,6 +1680,30 @@ export default function App() {
           </AnimatePresence>
 
           <motion.form layout onSubmit={handleSubmit} className="relative group w-full flex items-center pointer-events-auto">
+            <AnimatePresence>
+              {showCmdPalette && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6, scale: 0.98 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.98 }}
+                  transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
+                  className="absolute bottom-full mb-2 left-0 right-0 bg-[#0c0c0e] border border-zinc-800 rounded-sm shadow-2xl overflow-hidden z-20 max-h-48 overflow-y-auto hide-scrollbar"
+                >
+                  {filteredCmds.map((cmd, i) => (
+                    <button
+                      key={cmd.name}
+                      type="button"
+                      onMouseEnter={() => setCmdIndex(i)}
+                      onClick={() => executeCommand(cmd.name)}
+                      className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors ${i === cmdIndex ? 'bg-zinc-800/60 text-zinc-100' : 'text-zinc-400 hover:bg-zinc-800/30 hover:text-zinc-200'}`}
+                    >
+                      <span className="font-mono text-xs font-medium">{cmd.name}</span>
+                      <span className="text-[11px] text-zinc-500 truncate">{cmd.desc}</span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
             <AnimatePresence>
               {showRpRing && (
                 <motion.span
