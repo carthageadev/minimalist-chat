@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Send, Lock, Terminal, Maximize, Minimize, X, Square, Check, Brain, Sparkles } from 'lucide-react';
+import { Send, Lock, Terminal, Maximize, Minimize, X, Square, Check, Brain, Sparkles, Pencil } from 'lucide-react';
 import { Streamdown } from 'streamdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -416,6 +416,42 @@ export default function App() {
     });
   };
 
+  const startEdit = (idx: number) => {
+    if (isLoading || isStreaming) return;
+    setEditingIndex(idx);
+    setEditDraft(messages[idx]?.content ?? '');
+    setTimeout(() => editTextareaRef.current?.focus(), 30);
+  };
+  const cancelEdit = () => {
+    setEditingIndex(null);
+    setEditDraft('');
+  };
+  const saveEdit = async () => {
+    if (editingIndex === null) return;
+    const trimmed = editDraft.trim();
+    if (!trimmed) { cancelEdit(); return; }
+    const idx = editingIndex;
+    const target = messages[idx];
+    if (!target || target.content === trimmed) { cancelEdit(); return; }
+    // Abort any in-flight stream
+    abortControllerRef.current?.abort();
+    const isUserEdit = target.role === 'user';
+    const isAssistantEdit = target.role === 'assistant';
+    const nextMessages = [...messages.slice(0, idx), { ...target, content: trimmed }];
+    // Rollback: drop everything after edited message
+    setMessages(nextMessages);
+    setEditingIndex(null);
+    setEditDraft('');
+    if (isUserEdit) {
+      // Regenerate from edited user message
+      const toSend = trimHistory(nextMessages);
+      // small delay for exit animation
+      setTimeout(() => { void processChat(toSend); }, 180);
+    } else if (isAssistantEdit) {
+      // Assistant edit is local — no regeneration, just keep edited content
+    }
+  };
+
   const selectedLabel = MODELS.find((m) => m.id === model)?.label ?? model;
   const modelSupportsReasoningToggle = (id: string) =>
     !!(MODELS.find((m) => m.id === id) as any)?.reasoningToggle;
@@ -423,6 +459,9 @@ export default function App() {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const autoScrollRef = useRef(true);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState('');
+  const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Phones/tablets (coarse pointer) get ChatGPT-mobile behaviour: the keyboard
   // Enter key inserts a newline, and only the on-screen Send button sends.
@@ -940,19 +979,69 @@ export default function App() {
                    }
                 }
 
+                const isEditing = editingIndex === idx;
+                const canEdit = msg.role === 'user' || msg.role === 'assistant';
                 return (
                 <motion.div
                   key={idx}
+                  layout
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.1, ease: "easeOut" }}
-                  className="w-full flex flex-col gap-2"
+                  exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
+                  transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
+                  className="group w-full flex flex-col gap-2"
                 >
-                  <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider">
-                    {msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}
+                  <span className="font-mono text-[10px] text-zinc-500 uppercase tracking-wider flex items-center justify-between gap-2">
+                    <span>{msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}</span>
+                    {canEdit && !isEditing && !isLoading && !isStreaming && (
+                      <button
+                        onClick={() => startEdit(idx)}
+                        className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all duration-150 p-1 -mr-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
+                        aria-label="Edit message"
+                        title="Edit"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                    )}
                   </span>
                   <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? 'text-zinc-400' : msg.role === 'system' ? 'text-blue-400/80' : msg.error ? 'text-red-400/80' : 'text-zinc-100'} markdown-body`}>
-                    {msg.role === 'assistant' ? (
+                    {isEditing ? (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
+                        className="flex flex-col gap-3"
+                      >
+                        <textarea
+                          ref={editTextareaRef}
+                          value={editDraft}
+                          onChange={(e) => setEditDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+                            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(); }
+                          }}
+                          className="w-full min-h-[88px] bg-zinc-900/60 border border-zinc-700 focus:border-zinc-600 rounded-sm p-3 text-[14px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-colors"
+                          rows={Math.max(3, editDraft.split('\n').length)}
+                          placeholder="Edit message..."
+                        />
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={cancelEdit}
+                            className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 border border-zinc-800 hover:border-zinc-700 rounded-sm transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => void saveEdit()}
+                            disabled={!editDraft.trim()}
+                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed rounded-sm transition-colors"
+                          >
+                            <Check size={12} />
+                            {msg.role === 'user' ? 'Save & regenerate' : 'Save'}
+                          </button>
+                        </div>
+                      </motion.div>
+                    ) : msg.role === 'assistant' ? (
                       <>
                         {msg.reasoning && (() => {
                           const reasoningPending = isStreaming && idx === messages.length - 1;
@@ -979,6 +1068,10 @@ export default function App() {
                         isAnimating={isStreaming && idx === messages.length - 1}
                         components={{
                           hr: () => <hr className="border-t border-zinc-800/80 my-8" />,
+                          p: ({ node, ...props }: any) => <p className="mb-[1.25em] leading-[1.75] last:mb-0" {...props} />,
+                          ul: ({ node, ...props }: any) => <ul className="mb-[1.25em] pl-0 list-none" {...props} />,
+                          ol: ({ node, ...props }: any) => <ol className="mb-[1.25em] pl-6 list-decimal" {...props} />,
+                          li: ({ node, ...props }: any) => <li className="mb-1.5" {...props} />,
                           strong: ({ node, children, ...props }: any) => {
                             const start = node?.position?.start?.offset ?? -1;
                             const before = start >= 0 ? msg.content.slice(0, start) : '';
@@ -1059,6 +1152,47 @@ export default function App() {
                         }}
                       >{msg.content}</Streamdown>
                       </>
+                    ) : msg.role === 'user' ? (
+                      <Streamdown
+                        isAnimating={false}
+                        components={{
+                          hr: () => <hr className="border-t border-zinc-800/80 my-8" />,
+                          p: ({ node, ...props }: any) => <p className="mb-[1.25em] leading-[1.75] last:mb-0" {...props} />,
+                          ul: ({ node, ...props }: any) => <ul className="mb-[1.25em] pl-0 list-none" {...props} />,
+                          ol: ({ node, ...props }: any) => <ol className="mb-[1.25em] pl-6 list-decimal" {...props} />,
+                          li: ({ node, ...props }: any) => <li className="mb-1.5" {...props} />,
+                          strong: ({ node, children, ...props }: any) => {
+                            const start = node?.position?.start?.offset ?? -1;
+                            const before = start >= 0 ? msg.content.slice(0, start) : '';
+                            const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
+                            return (
+                              <strong style={{ color: inQuote ? '#fff' : '#d4d4d8' }} className={inQuote ? 'font-semibold' : 'font-bold'} {...props}>
+                                {children}
+                              </strong>
+                            );
+                          },
+                          em: ({ node, children, ...props }: any) => {
+                            const start = node?.position?.start?.offset ?? -1;
+                            const before = start >= 0 ? msg.content.slice(0, start) : '';
+                            const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
+                            return <span className={inQuote ? 'text-zinc-100 italic font-medium' : 'text-zinc-400/90'} {...props}>{children}</span>;
+                          },
+                          a: ({ node, ...props }: any) => <a className="text-zinc-300 underline decoration-zinc-600 underline-offset-4 hover:decoration-zinc-300" {...props} />,
+                          blockquote: ({ node, ...props }: any) => <blockquote className="border-l-2 border-zinc-700 pl-4 my-4 italic text-zinc-400/90" {...props} />,
+                          code: ({ node, className, children, ...props }: any) => {
+                            const match = /language-(\w+)/.exec(className || '');
+                            const isInline = !match && !String(children).includes('\n');
+                            if (isInline) return <code className="bg-zinc-800 text-zinc-200 px-1.5 py-0.5 rounded-sm text-sm font-mono" {...props}>{children}</code>;
+                            const lang = match ? match[1] : 'text';
+                            const str = String(children).replace(/\n$/, '');
+                            return (
+                              <div className="rounded-sm overflow-hidden border border-zinc-800/80 my-4">
+                                <SyntaxHighlighter {...(props as any)} style={vscDarkPlus} language={lang} PreTag="div" customStyle={{ margin: 0, background: '#0c0c0e', padding: '1rem', fontSize: '0.875rem' }}>{str}</SyntaxHighlighter>
+                              </div>
+                            );
+                          },
+                        }}
+                      >{msg.content}</Streamdown>
                     ) : (
                       <div className="whitespace-pre-wrap">
                         {msg.content}
