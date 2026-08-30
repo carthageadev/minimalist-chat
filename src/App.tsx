@@ -1611,7 +1611,7 @@ export default function App() {
                             const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
                             return (
                               <strong
-                                style={{ color: inQuote ? '#fff' : 'rgb(161 161 170 / 0.92)' }}
+                                style={rpMode ? { color: inQuote ? '#fff' : 'rgb(161 161 170 / 0.92)' } : undefined}
                                 className={inQuote ? 'font-semibold' : 'font-bold'}
                                 {...props}
                               >
@@ -1623,7 +1623,7 @@ export default function App() {
                             const start = node?.position?.start?.offset ?? -1;
                             const before = start >= 0 ? msg.content.slice(0, start) : '';
                             const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
-                            return <span className={inQuote ? 'text-zinc-100 italic font-medium' : 'text-zinc-500/80'} {...props}>{children}</span>;
+                            return <span className={rpMode ? (inQuote ? 'text-zinc-100 italic font-medium' : 'text-zinc-500/80') : 'italic'} {...props}>{children}</span>;
                           },
                           table: ({ node, ...props }: any) => (
                             <div className="w-full overflow-x-auto my-6 border border-zinc-800/80 rounded-sm">
@@ -1699,7 +1699,7 @@ export default function App() {
                             const before = start >= 0 ? msg.content.slice(0, start) : '';
                             const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
                             return (
-                              <strong style={{ color: inQuote ? '#fff' : '#d4d4d8' }} className={inQuote ? 'font-semibold' : 'font-bold'} {...props}>
+                              <strong style={rpMode ? { color: inQuote ? '#fff' : '#d4d4d8' } : undefined} className={inQuote ? 'font-semibold' : 'font-bold'} {...props}>
                                 {children}
                               </strong>
                             );
@@ -1708,7 +1708,7 @@ export default function App() {
                             const start = node?.position?.start?.offset ?? -1;
                             const before = start >= 0 ? msg.content.slice(0, start) : '';
                             const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
-                            return <span className={inQuote ? 'text-zinc-100 italic font-medium' : 'text-zinc-400/90'} {...props}>{children}</span>;
+                            return <span className={rpMode ? (inQuote ? 'text-zinc-100 italic font-medium' : 'text-zinc-400/90') : 'italic'} {...props}>{children}</span>;
                           },
                           a: ({ node, ...props }: any) => <a className="text-zinc-300 underline decoration-zinc-600 underline-offset-4 hover:decoration-zinc-300" {...props} />,
                           blockquote: ({ node, ...props }: any) => <blockquote className="border-l-2 border-zinc-700 pl-4 my-4 italic text-zinc-400/90" {...props} />,
