@@ -755,7 +755,7 @@ export default function App() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const [activeMessageIndex, setActiveMessageIndex] = useState<number | null>(null);
+  const [isAtBottom, setIsAtBottom] = useState(true);
   const [pendingDeleteIdx, setPendingDeleteIdx] = useState<number | null>(null);
   useEffect(() => {
     if (pendingDeleteIdx === null) return;
@@ -830,7 +830,11 @@ export default function App() {
   // up. Re-engage automatically once they're back near the bottom.
   const handleScroll = () => {
     const el = scrollContainerRef.current;
-    if (el) autoScrollRef.current = isNearBottom(el);
+    if (el) {
+      const nearBottom = isNearBottom(el);
+      autoScrollRef.current = nearBottom;
+      setIsAtBottom(nearBottom);
+    }
   };
 
   useEffect(() => {
@@ -838,7 +842,10 @@ export default function App() {
     const el = scrollContainerRef.current;
     if (!el) return;
     const id = requestAnimationFrame(() => {
-      if (autoScrollRef.current && el) el.scrollTop = el.scrollHeight;
+      if (autoScrollRef.current && el) {
+        el.scrollTop = el.scrollHeight;
+        setIsAtBottom(true);
+      }
     });
     return () => cancelAnimationFrame(id);
   }, [messages, isLoading, isStreaming]);
@@ -1467,11 +1474,10 @@ export default function App() {
                   exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
                   transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
                   className="group w-full flex flex-col gap-2"
-                  onClick={() => setActiveMessageIndex(idx)}
                 >
                   <span className="relative font-mono text-[10px] text-zinc-500 uppercase tracking-wider flex items-center justify-between gap-2">
                     <span>{msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}</span>
-                    {canEdit && !isLoading && !isStreaming && (
+                    {canEdit && !isLoading && !isStreaming && !(idx === messages.length - 1 && isAtBottom) && (
                       <span className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 min-w-[72px] justify-end">
                         {isEditing ? (
                           <>
@@ -1492,24 +1498,24 @@ export default function App() {
                             </button>
                           </>
                         ) : (
-                        <span className={`flex items-center gap-0.5 ${pendingDeleteIdx === idx ? 'opacity-0 pointer-events-none' : ''} ${activeMessageIndex === idx ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100'} transition-opacity duration-150`}>
+                        <span className={`flex items-center gap-0.5 ${pendingDeleteIdx === idx ? 'opacity-0 pointer-events-none' : ''} opacity-60 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity duration-150`}>
                           {msg.role === 'assistant' && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleRegenerate(idx); }}
-                              className="p-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
+                              className="p-1.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
                               aria-label="Regenerate"
                               title="Regenerate"
                             >
-                              <RotateCw size={11} />
+                              <RotateCw size={14} />
                             </button>
                           )}
                           <button
                             onClick={(e) => { e.stopPropagation(); startEdit(idx); }}
-                            className="p-1 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
+                            className="p-1.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
                             aria-label="Edit message"
                             title="Edit"
                           >
-                            <Pencil size={11} />
+                            <Pencil size={14} />
                           </button>
                         </span>
                         )}
@@ -1536,11 +1542,11 @@ export default function App() {
                           <button
                             data-delete-trigger={idx}
                             onClick={(e) => { e.stopPropagation(); setPendingDeleteIdx(idx); }}
-                            className={`${activeMessageIndex === idx ? 'opacity-100' : 'opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100'} transition-opacity duration-150 p-1 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 rounded-sm`}
+                            className="opacity-60 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity duration-150 p-1.5 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 rounded-sm"
                             aria-label="Delete message"
                             title="Delete"
                           >
-                            <X size={11} />
+                            <X size={14} />
                           </button>
                         ))}
                       </span>
@@ -1754,41 +1760,43 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                  {canEdit && !isLoading && !isStreaming && !isEditing && (
+                  {canEdit && idx === messages.length - 1 && isAtBottom && !isLoading && !isStreaming && !isEditing && (
                     <div className="flex items-center justify-end gap-1 pt-1 border-t border-zinc-900/70">
                       {msg.role === 'assistant' && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleRegenerate(idx); }}
-                          className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] font-mono uppercase tracking-wider text-zinc-600 hover:text-zinc-300 rounded-sm"
+                          className="p-1.5 text-zinc-600 hover:text-zinc-300 rounded-sm"
                           aria-label="Regenerate"
+                          title="Regenerate"
                         >
-                          <RotateCw size={11} /> Reroll
+                          <RotateCw size={14} />
                         </button>
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); startEdit(idx); }}
-                        className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] font-mono uppercase tracking-wider text-zinc-600 hover:text-zinc-300 rounded-sm"
+                        className="p-1.5 text-zinc-600 hover:text-zinc-300 rounded-sm"
                         aria-label="Edit message"
+                        title="Edit"
                       >
-                        <Pencil size={11} /> Edit
+                        <Pencil size={14} />
                       </button>
                       {pendingDeleteIdx === idx ? (
-                        <span data-pending-delete={idx} className="inline-flex items-center gap-1 text-[10px] font-mono text-zinc-400">
-                          Are you sure?
-                          <button
-                            onClick={(e) => { e.stopPropagation(); deleteMessage(idx); setPendingDeleteIdx(null); }}
-                            className="p-1 text-red-400 bg-red-500/15 rounded-sm"
-                            aria-label="Confirm delete"
-                          ><Check size={11} /></button>
-                        </span>
+                        <button
+                          data-pending-delete={idx}
+                          onClick={(e) => { e.stopPropagation(); deleteMessage(idx); setPendingDeleteIdx(null); }}
+                          className="p-1.5 text-red-400 bg-red-500/15 rounded-sm"
+                          aria-label="Confirm delete"
+                          title="Confirm delete"
+                        ><Check size={14} /></button>
                       ) : (
                         <button
                           data-delete-trigger={idx}
                           onClick={(e) => { e.stopPropagation(); setPendingDeleteIdx(idx); }}
-                          className="inline-flex items-center gap-1 px-2 py-1.5 text-[10px] font-mono uppercase tracking-wider text-zinc-600 hover:text-red-400 rounded-sm"
+                          className="p-1.5 text-zinc-600 hover:text-red-400 rounded-sm"
                           aria-label="Delete message"
+                          title="Delete"
                         >
-                          <X size={11} /> Delete
+                          <X size={14} />
                         </button>
                       )}
                     </div>
