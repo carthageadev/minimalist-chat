@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Send, Lock, Terminal, Maximize, Minimize, X, Square, Check, Brain, Sparkles, Pencil, RotateCw } from 'lucide-react';
+import { Send, Lock, Terminal, Maximize, Minimize, X, Square, Check, Brain, Sparkles, Pencil, RotateCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Streamdown } from 'streamdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -167,6 +167,8 @@ interface Message {
   content: string;
   reasoning?: string;
   error?: boolean;
+  alternatives?: { content: string; reasoning?: string }[];
+  activeAlternative?: number;
 }
 
 interface ChatSession {
@@ -715,7 +717,16 @@ export default function App() {
     abortControllerRef.current?.abort();
     const isUserEdit = target.role === 'user';
     const isAssistantEdit = target.role === 'assistant';
-    const nextMessages = [...messages.slice(0, idx), { ...target, content: trimmed }];
+    const editedTarget = target.alternatives
+      ? {
+          ...target,
+          content: trimmed,
+          alternatives: target.alternatives.map((alternative, i) => i === (target.activeAlternative ?? 0)
+            ? { ...alternative, content: trimmed }
+            : alternative),
+        }
+      : { ...target, content: trimmed };
+    const nextMessages = [...messages.slice(0, idx), editedTarget];
     // Rollback: drop everything after edited message
     setMessages(nextMessages);
     setEditingIndex(null);
@@ -750,10 +761,22 @@ export default function App() {
     }
     if (lastUserIdx === -1) return;
     const truncated = messages.slice(0, lastUserIdx + 1);
+    const alternatives = target.alternatives ?? [{ content: target.content, reasoning: target.reasoning }];
     setMessages(truncated);
     setEditingIndex(null);
     const toSend = trimHistory(truncated);
-    setTimeout(() => { void processChat(toSend); }, 180);
+    setTimeout(() => { void processChat(toSend, { alternatives }); }, 180);
+  };
+
+  const cycleAlternative = (idx: number, direction: -1 | 1) => {
+    const target = messages[idx];
+    if (!target?.alternatives || target.alternatives.length < 2) return;
+    const current = target.activeAlternative ?? 0;
+    const next = (current + direction + target.alternatives.length) % target.alternatives.length;
+    const alternative = target.alternatives[next];
+    setMessages((prev) => prev.map((message, i) => i === idx
+      ? { ...message, content: alternative.content, reasoning: alternative.reasoning, activeAlternative: next }
+      : message));
   };
 
   const selectedLabel = MODELS.find((m) => m.id === model)?.label ?? model;
@@ -879,7 +902,7 @@ export default function App() {
     }
   };
 
-  const processChat = async (currentMessages: Message[]) => {
+  const processChat = async (currentMessages: Message[], responseMeta?: Pick<Message, 'alternatives' | 'activeAlternative'>) => {
     // Interrupt any in-flight stream before starting a new one
     abortControllerRef.current?.abort();
     titleGenRef.current?.abort();
@@ -914,7 +937,7 @@ export default function App() {
         started = true;
         setIsLoading(false);
         setIsStreaming(true);
-        setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+        setMessages((prev) => [...prev, { role: 'assistant', content: '', ...responseMeta }]);
       };
       const patchLast = () => {
         if (controller.signal.aborted || abortControllerRef.current !== controller) return;
@@ -941,6 +964,18 @@ export default function App() {
       });
 
       const fullAssistantMessage = accum.content;
+
+      if (responseMeta?.alternatives) {
+        setMessages((prev) => {
+          const copy = [...prev];
+          const i = copy.length - 1;
+          if (copy[i]?.role === 'assistant') {
+            const alternatives = [...responseMeta.alternatives, { content: fullAssistantMessage, reasoning: accum.reasoning }];
+            copy[i] = { ...copy[i], alternatives, activeAlternative: alternatives.length - 1 };
+          }
+          return copy;
+        });
+      }
 
       const searchMatch = fullAssistantMessage.match(/\[SEARCH:\s*(.*?)\]/i);
       
@@ -1510,6 +1545,13 @@ export default function App() {
                           </>
                         ) : (
                         <span className={`flex items-center gap-0.5 ${pendingDeleteIdx === idx ? 'opacity-0 pointer-events-none' : ''} opacity-60 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity duration-150`}>
+                          {msg.alternatives && msg.alternatives.length > 1 && (
+                            <>
+                              <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, -1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Previous response" title="Previous response"><ChevronLeft size={13} /></button>
+                              <span className="px-0.5 text-[9px] font-mono text-zinc-600">{(msg.activeAlternative ?? 0) + 1}/{msg.alternatives.length}</span>
+                              <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, 1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Next response" title="Next response"><ChevronRight size={13} /></button>
+                            </>
+                          )}
                           {msg.role === 'assistant' && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleRegenerate(idx); }}
@@ -1749,6 +1791,13 @@ export default function App() {
                   {canEdit && idx === messages.length - 1 && isAtBottom && !isLoading && !isStreaming && (
                     <div className="flex items-center justify-end gap-1 min-h-[31px] pt-1 border-t border-zinc-900/70">
                       {!isEditing && <>
+                      {msg.alternatives && msg.alternatives.length > 1 && (
+                        <>
+                          <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, -1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Previous response" title="Previous response"><ChevronLeft size={14} /></button>
+                          <span className="px-1 text-[9px] font-mono text-zinc-600">{(msg.activeAlternative ?? 0) + 1}/{msg.alternatives.length}</span>
+                          <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, 1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Next response" title="Next response"><ChevronRight size={14} /></button>
+                        </>
+                      )}
                       {msg.role === 'assistant' && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleRegenerate(idx); }}
