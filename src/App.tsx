@@ -1586,7 +1586,7 @@ export default function App() {
                             if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
                             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(); }
                           }}
-                            className="w-full h-full min-h-[88px] bg-zinc-900/60 border border-zinc-700 focus:border-zinc-600 rounded-sm p-3 text-[15px] sm:text-base leading-relaxed text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-colors overflow-y-auto"
+                            className="block w-full h-full m-0 p-0 bg-zinc-900/60 border-0 outline outline-1 -outline-offset-1 outline-zinc-700 focus:outline-zinc-500 rounded-sm font-[inherit] text-[15px] sm:text-base leading-relaxed text-zinc-100 placeholder:text-zinc-600 resize-none focus:ring-0 transition-colors overflow-y-auto"
                            rows={3}
                           placeholder="Edit message..."
                         />
