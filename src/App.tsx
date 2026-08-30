@@ -777,6 +777,16 @@ export default function App() {
     setTimeout(() => { void processChat(toSend, { alternatives }); }, 180);
   };
 
+  const handleGenerateForUser = async (idx: number) => {
+    if (isLoading || isStreaming) return;
+    const target = messages[idx];
+    if (!target || target.role !== 'user' || idx !== messages.length - 1) return;
+    setPendingDeleteIdx(null);
+    abortControllerRef.current?.abort();
+    const toSend = trimHistory(messages.slice(0, idx + 1));
+    setTimeout(() => { void processChat(toSend); }, 180);
+  };
+
   const cycleAlternative = (idx: number, direction: -1 | 1) => {
     setMessages((prev) => prev.map((message, i) => {
       if (i !== idx || !message.alternatives || message.alternatives.length < 2) return message;
@@ -1560,12 +1570,21 @@ export default function App() {
                               <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, 1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Next response" title="Next response"><ChevronRight size={13} /></button>
                             </>
                           )}
-                          {msg.role === 'assistant' && (
+                          {msg.role === 'assistant' ? (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleRegenerate(idx); }}
                               className="p-1.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
                               aria-label="Regenerate"
                               title="Regenerate"
+                            >
+                              <RotateCw size={14} />
+                            </button>
+                          ) : idx === messages.length - 1 && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); void handleGenerateForUser(idx); }}
+                              className="p-1.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
+                              aria-label="Generate response"
+                              title="Generate response"
                             >
                               <RotateCw size={14} />
                             </button>
@@ -1798,12 +1817,21 @@ export default function App() {
                           <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, 1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Next response" title="Next response"><ChevronRight size={14} /></button>
                         </>
                       )}
-                      {msg.role === 'assistant' && (
+                      {msg.role === 'assistant' ? (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleRegenerate(idx); }}
                           className="p-1.5 text-zinc-600 hover:text-zinc-300 rounded-sm"
                           aria-label="Regenerate"
                           title="Regenerate"
+                        >
+                          <RotateCw size={14} />
+                        </button>
+                      ) : idx === messages.length - 1 && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); void handleGenerateForUser(idx); }}
+                          className="p-1.5 text-zinc-600 hover:text-zinc-300 rounded-sm"
+                          aria-label="Generate response"
+                          title="Generate response"
                         >
                           <RotateCw size={14} />
                         </button>
