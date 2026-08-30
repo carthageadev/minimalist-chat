@@ -1586,7 +1586,7 @@ export default function App() {
                         if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
                         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(); }
                       } : undefined}
-                      className={`transition-colors duration-150 ${isEditing ? 'bg-emerald-950/25 shadow-[0_0_0_8px_rgba(20,70,52,0.16)] rounded-sm' : ''}`}
+                      className={`transition-colors duration-150 ${isEditing ? 'bg-zinc-800/35 rounded-sm' : ''}`}
                     >
                     {msg.role === 'assistant' ? (
                       <>
