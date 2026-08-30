@@ -734,8 +734,7 @@ export default function App() {
             : alternative),
         }
       : { ...target, content: trimmed };
-    const nextMessages = [...messages.slice(0, idx), editedTarget];
-    // Rollback: drop everything after edited message
+    const nextMessages = messages.map((message, i) => i === idx ? editedTarget : message);
     setMessages(nextMessages);
     setEditingIndex(null);
     setEditDraft('');
