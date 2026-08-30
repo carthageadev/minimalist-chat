@@ -196,7 +196,13 @@ const loadHistory = (): ChatSession[] => {
     // History is RP-only — drop any legacy normal-mode chats
     const filtered = all.filter(c => c.rpMode).map(c => ({
       ...c,
-      messages: c.messages.map(m => ({ ...m, id: m.id ?? genId() })),
+      messages: c.messages.map(m => {
+        const alternatives = m.alternatives;
+        const activeAlternative = alternatives?.length
+          ? Math.min(Math.max(m.activeAlternative ?? alternatives.length - 1, 0), alternatives.length - 1)
+          : undefined;
+        return { ...m, id: m.id ?? genId(), alternatives, activeAlternative };
+      }),
     }));
     if (filtered.length !== all.length) localStorage.setItem(HISTORY_KEY, JSON.stringify(filtered));
     return filtered;
@@ -726,13 +732,17 @@ export default function App() {
     // Abort any in-flight stream
     abortControllerRef.current?.abort();
     const editedTarget = target.alternatives
-      ? {
-          ...target,
-          content: trimmed,
-          alternatives: target.alternatives.map((alternative, i) => i === (target.activeAlternative ?? 0)
-            ? { ...alternative, content: trimmed }
-            : alternative),
-        }
+      ? (() => {
+          const activeAlternative = Math.min(Math.max(target.activeAlternative ?? 0, 0), target.alternatives.length - 1);
+          return {
+            ...target,
+            content: trimmed,
+            activeAlternative,
+            alternatives: target.alternatives.map((alternative, i) => i === activeAlternative
+              ? { ...alternative, content: trimmed }
+              : alternative),
+          };
+        })()
       : { ...target, content: trimmed };
     const nextMessages = messages.map((message, i) => i === idx ? editedTarget : message);
     setMessages(nextMessages);
@@ -768,14 +778,13 @@ export default function App() {
   };
 
   const cycleAlternative = (idx: number, direction: -1 | 1) => {
-    const target = messages[idx];
-    if (!target?.alternatives || target.alternatives.length < 2) return;
-    const current = target.activeAlternative ?? 0;
-    const next = (current + direction + target.alternatives.length) % target.alternatives.length;
-    const alternative = target.alternatives[next];
-    setMessages((prev) => prev.map((message, i) => i === idx
-      ? { ...message, content: alternative.content, reasoning: alternative.reasoning, activeAlternative: next }
-      : message));
+    setMessages((prev) => prev.map((message, i) => {
+      if (i !== idx || !message.alternatives || message.alternatives.length < 2) return message;
+      const current = Math.min(Math.max(message.activeAlternative ?? 0, 0), message.alternatives.length - 1);
+      const next = (current + direction + message.alternatives.length) % message.alternatives.length;
+      const alternative = message.alternatives[next];
+      return { ...message, content: alternative.content, reasoning: alternative.reasoning, activeAlternative: next };
+    }));
   };
 
   const selectedLabel = MODELS.find((m) => m.id === model)?.label ?? model;
