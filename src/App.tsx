@@ -715,8 +715,6 @@ export default function App() {
     if (!target || target.content === trimmed) { cancelEdit(); return; }
     // Abort any in-flight stream
     abortControllerRef.current?.abort();
-    const isUserEdit = target.role === 'user';
-    const isAssistantEdit = target.role === 'assistant';
     const editedTarget = target.alternatives
       ? {
           ...target,
@@ -731,14 +729,6 @@ export default function App() {
     setMessages(nextMessages);
     setEditingIndex(null);
     setEditDraft('');
-    if (isUserEdit) {
-      // Regenerate from edited user message
-      const toSend = trimHistory(nextMessages);
-      // small delay for exit animation
-      setTimeout(() => { void processChat(toSend); }, 180);
-    } else if (isAssistantEdit) {
-      // Assistant edit is local — no regeneration, just keep edited content
-    }
   };
   const deleteMessage = (idx: number) => {
     if (isLoading || isStreaming) return;
