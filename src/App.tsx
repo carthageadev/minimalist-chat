@@ -689,7 +689,12 @@ export default function App() {
     setEditingIndex(idx);
     setEditDraft(messages[idx]?.content ?? '');
     setTimeout(() => {
-      editTextareaRef.current?.focus({ preventScroll: true });
+      const editor = editTextareaRef.current;
+      if (editor) {
+        // Replace the rendered children with the original raw Markdown while editing.
+        editor.textContent = messages[idx]?.content ?? '';
+        editor.focus({ preventScroll: true });
+      }
       if (scrollTop !== undefined && scrollContainerRef.current) {
         scrollContainerRef.current.scrollTop = scrollTop;
       }
