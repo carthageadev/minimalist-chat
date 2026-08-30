@@ -1582,6 +1582,7 @@ export default function App() {
                       );
                     })()}
                     <div
+                      key={`${idx}-${isEditing ? 'editing' : 'view'}`}
                       data-response-body={idx}
                       ref={isEditing ? editTextareaRef : undefined}
                       contentEditable={isEditing}
