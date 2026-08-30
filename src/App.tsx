@@ -1489,15 +1489,15 @@ export default function App() {
                           <>
                             <button
                               onClick={(e) => { e.stopPropagation(); cancelEdit(); }}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-zinc-500 hover:text-zinc-200 border border-zinc-800 rounded-sm"
+                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono text-zinc-500 hover:text-zinc-200 border border-zinc-800 rounded-sm"
                               aria-label="Stop editing"
                             >
-                              <X size={10} /> Stop
+                              <X size={10} /> Cancel
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); void saveEdit(); }}
                               disabled={!editDraft.trim()}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-zinc-200 hover:text-white disabled:opacity-40 border border-zinc-700 rounded-sm"
+                               className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono text-zinc-200 hover:text-white disabled:opacity-40 border border-zinc-700 rounded-sm"
                               aria-label="Save edit"
                             >
                               <Check size={10} /> Save
@@ -1586,7 +1586,8 @@ export default function App() {
                         if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
                         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(); }
                       } : undefined}
-                      className={`transition-colors duration-150 ${isEditing ? 'bg-zinc-800/35 rounded-sm' : ''}`}
+                      style={isEditing ? { backgroundImage: 'repeating-linear-gradient(-12deg, rgba(161, 161, 170, 0.035) 0px, rgba(161, 161, 170, 0.035) 1px, transparent 1px, transparent 8px)' } : undefined}
+                      className={`transition-colors duration-150 focus:outline-none ${isEditing ? 'bg-zinc-800/25 rounded-sm' : ''}`}
                     >
                     {msg.role === 'assistant' ? (
                       <>
@@ -1739,8 +1740,9 @@ export default function App() {
                     )}
                     </div>
                   </div>
-                  {canEdit && idx === messages.length - 1 && isAtBottom && !isLoading && !isStreaming && !isEditing && (
-                    <div className="flex items-center justify-end gap-1 pt-1 border-t border-zinc-900/70">
+                  {canEdit && idx === messages.length - 1 && isAtBottom && !isLoading && !isStreaming && (
+                    <div className="flex items-center justify-end gap-1 min-h-[31px] pt-1 border-t border-zinc-900/70">
+                      {!isEditing && <>
                       {msg.role === 'assistant' && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleRegenerate(idx); }}
@@ -1780,6 +1782,7 @@ export default function App() {
                           <X size={16} />
                         </button>
                       )}
+                      </>}
                     </div>
                   )}
                 </motion.div>
@@ -1808,12 +1811,12 @@ export default function App() {
 
         {editingIndex !== null && (
           <div className="fixed z-40 bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-3xl flex items-center justify-end gap-2 px-3 py-2 bg-[#0c0c0e]/95 backdrop-blur-md border border-zinc-800 rounded-sm shadow-2xl">
-            <span className="mr-auto font-mono text-[10px] uppercase tracking-wider text-zinc-600">Editing message</span>
+            <span className="mr-auto font-mono text-[10px] text-zinc-600">Editing message</span>
             <button
               onClick={cancelEdit}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded-sm"
             >
-              <X size={12} /> Stop editing
+              <X size={12} /> Cancel
             </button>
             <button
               onClick={() => void saveEdit()}
