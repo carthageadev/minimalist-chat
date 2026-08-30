@@ -684,6 +684,8 @@ export default function App() {
 
   const startEdit = (idx: number) => {
     if (isLoading || isStreaming) return;
+    const responseBody = document.querySelector<HTMLElement>(`[data-response-body="${idx}"]`);
+    editHeightRef.current = responseBody?.getBoundingClientRect().height ?? null;
     setPendingDeleteIdx(null);
     setEditingIndex(idx);
     setEditDraft(messages[idx]?.content ?? '');
@@ -692,6 +694,7 @@ export default function App() {
   const cancelEdit = () => {
     setEditingIndex(null);
     setEditDraft('');
+    editHeightRef.current = null;
   };
   const saveEdit = async () => {
     if (editingIndex === null) return;
@@ -755,6 +758,7 @@ export default function App() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editHeightRef = useRef<number | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [pendingDeleteIdx, setPendingDeleteIdx] = useState<number | null>(null);
   useEffect(() => {
@@ -1570,6 +1574,7 @@ export default function App() {
                         </details>
                       );
                     })()}
+                    <div data-response-body={idx}>
                     {isEditing ? (
                         <motion.div
                         initial={{ opacity: 0 }}
@@ -1586,7 +1591,7 @@ export default function App() {
                             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(); }
                           }}
                            className="w-full min-h-[88px] bg-zinc-900/60 border border-zinc-700 focus:border-zinc-600 rounded-sm p-3 text-[14px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-colors overflow-y-auto"
-                           style={{ height: `${Math.max(88, Math.min(480, msg.content.split('\n').length * 24 + 24))}px` }}
+                           style={{ height: `${Math.max(88, editHeightRef.current ?? 88)}px` }}
                            rows={3}
                           placeholder="Edit message..."
                         />
@@ -1740,6 +1745,7 @@ export default function App() {
                         )}
                       </div>
                     )}
+                    </div>
                   </div>
                   {canEdit && idx === messages.length - 1 && isAtBottom && !isLoading && !isStreaming && !isEditing && (
                     <div className="flex items-center justify-end gap-1 pt-1 border-t border-zinc-900/70">
