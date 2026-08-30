@@ -684,10 +684,16 @@ export default function App() {
 
   const startEdit = (idx: number) => {
     if (isLoading || isStreaming) return;
+    const scrollTop = scrollContainerRef.current?.scrollTop;
     setPendingDeleteIdx(null);
     setEditingIndex(idx);
     setEditDraft(messages[idx]?.content ?? '');
-    setTimeout(() => editTextareaRef.current?.focus(), 30);
+    setTimeout(() => {
+      editTextareaRef.current?.focus({ preventScroll: true });
+      if (scrollTop !== undefined && scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollTop;
+      }
+    }, 30);
   };
   const cancelEdit = () => {
     setEditingIndex(null);
@@ -1580,7 +1586,7 @@ export default function App() {
                         if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
                         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(); }
                       } : undefined}
-                      className={`transition-colors duration-150 ${isEditing ? 'bg-zinc-900/60 outline outline-1 -outline-offset-1 outline-zinc-700 focus:outline-zinc-500 rounded-sm' : ''}`}
+                      className={`transition-colors duration-150 ${isEditing ? 'bg-emerald-950/25 shadow-[0_0_0_8px_rgba(20,70,52,0.16)] rounded-sm' : ''}`}
                     >
                     {msg.role === 'assistant' ? (
                       <>
