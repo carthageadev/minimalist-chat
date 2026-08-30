@@ -163,6 +163,7 @@ const MODELS = [
 ];
 
 interface Message {
+  id?: string;
   role: Role;
   content: string;
   reasoning?: string;
@@ -193,7 +194,10 @@ const loadHistory = (): ChatSession[] => {
     const raw = localStorage.getItem(HISTORY_KEY);
     const all: ChatSession[] = raw ? JSON.parse(raw) : [];
     // History is RP-only — drop any legacy normal-mode chats
-    const filtered = all.filter(c => c.rpMode);
+    const filtered = all.filter(c => c.rpMode).map(c => ({
+      ...c,
+      messages: c.messages.map(m => ({ ...m, id: m.id ?? genId() })),
+    }));
     if (filtered.length !== all.length) localStorage.setItem(HISTORY_KEY, JSON.stringify(filtered));
     return filtered;
   } catch { return []; }
@@ -933,7 +937,7 @@ export default function App() {
         started = true;
         setIsLoading(false);
         setIsStreaming(true);
-        setMessages((prev) => [...prev, { role: 'assistant', content: '', ...responseMeta }]);
+        setMessages((prev) => [...prev, { id: genId(), role: 'assistant', content: '', ...responseMeta }]);
       };
       const patchLast = () => {
         if (controller.signal.aborted || abortControllerRef.current !== controller) return;
@@ -977,13 +981,13 @@ export default function App() {
       
       if (searchMatch) {
         const query = searchMatch[1];
-        setMessages((prev) => [...prev, { role: 'system', content: `[SEARCH] Executing search for: "${query}"...` }]);
+        setMessages((prev) => [...prev, { id: genId(), role: 'system', content: `[SEARCH] Executing search for: "${query}"...` }]);
         
         const searchResults = await searchDDGVAPI(query);
         if (controller.signal.aborted) return;
         
         const searchResultMessage: Message = {
-          role: 'user', 
+          id: genId(), role: 'user',
           content: `[SEARCH RESULTS for "${query}"]\n\n${searchResults}\n\nNow, answer my original query using this information.` 
         };
         
@@ -995,7 +999,7 @@ export default function App() {
 
         setMessages((prev) => [
           ...prev, 
-          { role: 'system', content: `[SEARCH] Retrieved results for: "${query}"` },
+          { id: genId(), role: 'system', content: `[SEARCH] Retrieved results for: "${query}"` },
           searchResultMessage
         ]);
 
@@ -1009,7 +1013,7 @@ export default function App() {
         return;
       }
       console.error('Failed to send message:', error);
-      setMessages((prev) => [...prev, { role: 'assistant', content: `Transmission error — ${error?.message || 'unknown failure'}`, error: true }]);
+        setMessages((prev) => [...prev, { id: genId(), role: 'assistant', content: `Transmission error — ${error?.message || 'unknown failure'}`, error: true }]);
     } finally {
       // Only clear state if this is still the active request
       if (abortControllerRef.current === controller) {
@@ -1044,7 +1048,7 @@ export default function App() {
       // (processChat guards with abortControllerRef checks)
     }
 
-    const userMessage: Message = { role: 'user', content: raw };
+    const userMessage: Message = { id: genId(), role: 'user', content: raw };
     let toSend: Message[] = [];
     setMessages(prev => {
       toSend = trimHistory([...prev, userMessage]);
@@ -1510,11 +1514,11 @@ export default function App() {
                 const canEdit = msg.role === 'user' || msg.role === 'assistant';
                 return (
                 <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
-                  transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
+                  key={msg.id ?? idx}
+                  initial={{ opacity: 0, filter: 'blur(5px)', x: 12 }}
+                  animate={{ opacity: 1, filter: 'blur(0px)', x: 0 }}
+                  exit={{ opacity: 0, filter: 'blur(7px)', x: -14, transition: { duration: 0.2, ease: 'easeOut' } }}
+                  transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
                   className="group w-full flex flex-col gap-2"
                 >
                   <span className="relative font-mono text-[10px] text-zinc-500 uppercase tracking-wider flex items-center justify-between gap-2">
