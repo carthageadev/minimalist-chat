@@ -754,7 +754,7 @@ export default function App() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState('');
-  const editTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const editTextareaRef = useRef<HTMLDivElement | null>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [pendingDeleteIdx, setPendingDeleteIdx] = useState<number | null>(null);
   useEffect(() => {
@@ -1570,29 +1570,18 @@ export default function App() {
                         </details>
                       );
                     })()}
-                    <div data-response-body={idx} className="relative">
-                    {isEditing && (
-                        <motion.div
-                         className="absolute inset-0 z-10"
-                         initial={{ opacity: 0 }}
-                         animate={{ opacity: 1 }}
-                         transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
-                       >
-                         <textarea
-                          ref={editTextareaRef}
-                          value={editDraft}
-                          onChange={(e) => setEditDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
-                            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(); }
-                          }}
-                            className="block w-full h-full m-0 p-0 bg-zinc-900/60 border-0 outline outline-1 -outline-offset-1 outline-zinc-700 focus:outline-zinc-500 rounded-sm font-[inherit] text-[15px] sm:text-base leading-relaxed text-zinc-100 placeholder:text-zinc-600 resize-none focus:ring-0 transition-colors overflow-y-auto"
-                           rows={3}
-                          placeholder="Edit message..."
-                        />
-                      </motion.div>
-                    )}
-                    <div className={`transition-opacity duration-150 ${isEditing ? 'opacity-0' : 'opacity-100'}`}>
+                    <div
+                      data-response-body={idx}
+                      ref={isEditing ? editTextareaRef : undefined}
+                      contentEditable={isEditing}
+                      suppressContentEditableWarning
+                      onInput={isEditing ? (e) => setEditDraft(e.currentTarget.innerText) : undefined}
+                      onKeyDown={isEditing ? (e) => {
+                        if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+                        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(); }
+                      } : undefined}
+                      className={`transition-colors duration-150 ${isEditing ? 'bg-zinc-900/60 outline outline-1 -outline-offset-1 outline-zinc-700 focus:outline-zinc-500 rounded-sm' : ''}`}
+                    >
                     {msg.role === 'assistant' ? (
                       <>
                         <Streamdown
@@ -1742,7 +1731,6 @@ export default function App() {
                         )}
                       </div>
                     )}
-                    </div>
                     </div>
                   </div>
                   {canEdit && idx === messages.length - 1 && isAtBottom && !isLoading && !isStreaming && !isEditing && (
