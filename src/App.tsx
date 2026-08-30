@@ -200,6 +200,12 @@ const loadHistory = (): ChatSession[] => {
 };
 const saveHistory = (chats: ChatSession[]) => localStorage.setItem(HISTORY_KEY, JSON.stringify(chats.filter(c => c.rpMode)));
 const formatDate = (ts: number) => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+const isTextInDialogue = (source: string, node: any, children: any) => {
+  let start = node?.position?.start?.offset ?? -1;
+  if (start < 0) start = source.indexOf(String(children));
+  if (start < 0) return false;
+  return (source.slice(0, start).match(/["“”]/g) || []).length % 2 === 1;
+};
 
 // Title generation uses Nemotron with thinking disabled.
 const generateChatTitle = async (opts: { messages: Message[]; rpMode: boolean; userPersona: string; charPersona: string; signal?: AbortSignal }): Promise<string> => {
@@ -1638,9 +1644,7 @@ export default function App() {
                           ol: ({ node, ...props }: any) => <ol className="mb-[1.25em] pl-6 list-decimal" {...props} />,
                           li: ({ node, ...props }: any) => <li className="mb-1.5" {...props} />,
                           strong: ({ node, children, ...props }: any) => {
-                            const start = node?.position?.start?.offset ?? -1;
-                            const before = start >= 0 ? msg.content.slice(0, start) : '';
-                            const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
+                            const inQuote = rpMode && isTextInDialogue(msg.content, node, children);
                             return (
                               <strong
                                 style={rpMode ? { color: inQuote ? '#fff' : 'rgb(161 161 170 / 0.92)' } : undefined}
@@ -1652,9 +1656,7 @@ export default function App() {
                             );
                           },
                           em: ({ node, children, ...props }: any) => {
-                            const start = node?.position?.start?.offset ?? -1;
-                            const before = start >= 0 ? msg.content.slice(0, start) : '';
-                            const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
+                            const inQuote = rpMode && isTextInDialogue(msg.content, node, children);
                             return <span className={rpMode ? (inQuote ? 'text-zinc-100 italic font-medium' : 'text-zinc-500/80') : 'italic'} {...props}>{children}</span>;
                           },
                           table: ({ node, ...props }: any) => (
@@ -1727,9 +1729,7 @@ export default function App() {
                           ol: ({ node, ...props }: any) => <ol className="mb-[1.25em] pl-6 list-decimal" {...props} />,
                           li: ({ node, ...props }: any) => <li className="mb-1.5" {...props} />,
                           strong: ({ node, children, ...props }: any) => {
-                            const start = node?.position?.start?.offset ?? -1;
-                            const before = start >= 0 ? msg.content.slice(0, start) : '';
-                            const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
+                            const inQuote = rpMode && isTextInDialogue(msg.content, node, children);
                             return (
                               <strong style={rpMode ? { color: inQuote ? '#fff' : 'rgb(161 161 170 / 0.92)' } : undefined} className={inQuote ? 'font-semibold' : 'font-bold'} {...props}>
                                 {children}
@@ -1737,9 +1737,7 @@ export default function App() {
                             );
                           },
                           em: ({ node, children, ...props }: any) => {
-                            const start = node?.position?.start?.offset ?? -1;
-                            const before = start >= 0 ? msg.content.slice(0, start) : '';
-                            const inQuote = rpMode && (before.match(/"/g) || []).length % 2 === 1;
+                            const inQuote = rpMode && isTextInDialogue(msg.content, node, children);
                             return <span className={rpMode ? (inQuote ? 'text-zinc-100 italic font-medium' : 'text-zinc-500/80') : 'italic'} {...props}>{children}</span>;
                           },
                           a: ({ node, ...props }: any) => <a className="text-zinc-300 underline decoration-zinc-600 underline-offset-4 hover:decoration-zinc-300" {...props} />,
