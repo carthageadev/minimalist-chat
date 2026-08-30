@@ -1524,14 +1524,14 @@ export default function App() {
                             data-pending-delete={idx}
                             className="relative inline-flex items-center"
                           >
-                            <span className="absolute right-full mr-1 whitespace-nowrap text-[10px] font-mono lowercase text-zinc-400">are you sure?</span>
+                            <span className="absolute right-full mr-1 whitespace-nowrap bg-transparent backdrop-blur-md px-1 py-0.5 rounded-sm text-[10px] font-mono lowercase text-zinc-400">are you sure?</span>
                             <button
                               onClick={(e) => { e.stopPropagation(); deleteMessage(idx); setPendingDeleteIdx(null); }}
                               className="p-1.5 text-red-300 bg-red-500/20 rounded-sm"
                               aria-label="Confirm delete"
                               title="Confirm delete"
                             >
-                              <X size={14} />
+                              <X size={16} />
                             </button>
                           </span>
                         ) : (
@@ -1542,7 +1542,7 @@ export default function App() {
                             aria-label="Delete message"
                             title="Delete"
                           >
-                            <X size={14} />
+                            <X size={16} />
                           </button>
                         ))}
                       </span>
@@ -1763,13 +1763,13 @@ export default function App() {
                       </button>
                       {pendingDeleteIdx === idx ? (
                         <span data-pending-delete={idx} className="relative inline-flex items-center">
-                          <span className="absolute right-full mr-1 whitespace-nowrap text-[10px] font-mono lowercase text-zinc-400">are you sure?</span>
+                          <span className="absolute right-full mr-1 whitespace-nowrap bg-transparent backdrop-blur-md px-1 py-0.5 rounded-sm text-[10px] font-mono lowercase text-zinc-400">are you sure?</span>
                           <button
                             onClick={(e) => { e.stopPropagation(); deleteMessage(idx); setPendingDeleteIdx(null); }}
                             className="p-1.5 text-red-300 bg-red-500/20 rounded-sm"
                             aria-label="Confirm delete"
                             title="Confirm delete"
-                          ><X size={14} /></button>
+                          ><X size={16} /></button>
                         </span>
                       ) : (
                         <button
@@ -1779,7 +1779,7 @@ export default function App() {
                           aria-label="Delete message"
                           title="Delete"
                         >
-                          <X size={14} />
+                          <X size={16} />
                         </button>
                       )}
                     </div>
