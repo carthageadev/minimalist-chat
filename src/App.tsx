@@ -1635,7 +1635,7 @@ export default function App() {
                         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(); }
                       } : undefined}
                       style={isEditing ? { backgroundImage: 'repeating-linear-gradient(-12deg, rgba(39, 39, 42, 0.12) 0px, rgba(39, 39, 42, 0.12) 2px, transparent 2px, transparent 9px)' } : undefined}
-                      className={`transition-colors duration-150 focus:outline-none ${isEditing ? 'bg-zinc-800/25 rounded-sm' : ''}`}
+                      className={`transition-colors duration-150 focus:outline-none ${isEditing ? 'bg-zinc-800/25 rounded-sm whitespace-pre-wrap' : ''}`}
                     >
                     {msg.role === 'assistant' ? (
                       <>
