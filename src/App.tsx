@@ -1497,7 +1497,7 @@ export default function App() {
                             <button
                               onClick={(e) => { e.stopPropagation(); void saveEdit(); }}
                               disabled={!editDraft.trim()}
-                               className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono text-zinc-200 hover:text-white disabled:opacity-40 border border-zinc-700 rounded-sm"
+                               className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 border border-zinc-100 rounded-sm"
                               aria-label="Save edit"
                             >
                               <Check size={10} /> Save
