@@ -807,8 +807,8 @@ export default function App() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const editTextareaRef = useRef<HTMLDivElement | null>(null);
-  const [isAtBottom, setIsAtBottom] = useState(true);
   const [pendingDeleteIdx, setPendingDeleteIdx] = useState<number | null>(null);
+  const [activeMessageIndex, setActiveMessageIndex] = useState<number | null>(null);
   useEffect(() => {
     if (pendingDeleteIdx === null) return;
     const t = setTimeout(() => setPendingDeleteIdx(null), 3000);
@@ -885,7 +885,6 @@ export default function App() {
     if (el) {
       const nearBottom = isNearBottom(el);
       autoScrollRef.current = nearBottom;
-      setIsAtBottom(nearBottom);
     }
   };
 
@@ -896,7 +895,6 @@ export default function App() {
     const id = requestAnimationFrame(() => {
       if (autoScrollRef.current && el) {
         el.scrollTop = el.scrollHeight;
-        setIsAtBottom(true);
       }
     });
     return () => cancelAnimationFrame(id);
@@ -1540,8 +1538,11 @@ export default function App() {
                   className="group w-full flex flex-col gap-2"
                 >
                   <span className="relative font-mono text-[10px] text-zinc-500 uppercase tracking-wider flex items-center justify-between gap-2">
-                    <span>{msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}</span>
-                    {canEdit && !isLoading && !isStreaming && !(idx === messages.length - 1 && isAtBottom) && (
+                    <span
+                      onClick={() => canEdit && setActiveMessageIndex(idx)}
+                      className={canEdit ? 'cursor-pointer' : ''}
+                    >{msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}</span>
+                    {canEdit && !isLoading && !isStreaming && (
                       <span className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 min-w-[72px] justify-end">
                         {isEditing ? (
                           <>
@@ -1562,7 +1563,7 @@ export default function App() {
                             </button>
                           </>
                         ) : (
-                        <span className={`flex items-center gap-0.5 ${pendingDeleteIdx === idx ? 'opacity-0 pointer-events-none' : ''} opacity-60 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity duration-150`}>
+                        <span className={`flex items-center gap-0.5 ${pendingDeleteIdx === idx ? 'opacity-0 pointer-events-none' : ''} opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${activeMessageIndex === idx ? 'opacity-60' : ''} transition-opacity duration-150`}>
                           {msg.alternatives && msg.alternatives.length > 1 && (
                             <>
                               <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, -1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Previous response" title="Previous response"><ChevronLeft size={13} /></button>
@@ -1570,21 +1571,12 @@ export default function App() {
                               <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, 1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Next response" title="Next response"><ChevronRight size={13} /></button>
                             </>
                           )}
-                          {msg.role === 'assistant' ? (
+                          {msg.role === 'assistant' && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleRegenerate(idx); }}
                               className="p-1.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
                               aria-label="Regenerate"
                               title="Regenerate"
-                            >
-                              <RotateCw size={14} />
-                            </button>
-                          ) : idx === messages.length - 1 && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); void handleGenerateForUser(idx); }}
-                              className="p-1.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
-                              aria-label="Generate response"
-                              title="Generate response"
                             >
                               <RotateCw size={14} />
                             </button>
@@ -1618,7 +1610,7 @@ export default function App() {
                           <button
                             data-delete-trigger={idx}
                             onClick={(e) => { e.stopPropagation(); setPendingDeleteIdx(idx); }}
-                            className="opacity-60 md:opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 transition-opacity duration-150 p-1.5 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 rounded-sm"
+                            className={`opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${activeMessageIndex === idx ? 'opacity-60' : ''} transition-opacity duration-150 p-1.5 text-zinc-600 hover:text-red-400 hover:bg-zinc-800/50 rounded-sm`}
                             aria-label="Delete message"
                             title="Delete"
                           >
@@ -1807,9 +1799,19 @@ export default function App() {
                     )}
                     </div>
                   </div>
-                  {canEdit && idx === messages.length - 1 && isAtBottom && !isLoading && !isStreaming && (
+                  {canEdit && idx === messages.length - 1 && !isLoading && !isStreaming && (
                     <div className="flex items-center justify-end gap-1 min-h-[31px] pt-1 border-t border-zinc-900/70">
                       {!isEditing && <>
+                      {msg.role === 'user' && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); void handleGenerateForUser(idx); }}
+                          className="p-1.5 text-zinc-600 hover:text-zinc-300 rounded-sm"
+                          aria-label="Generate response"
+                          title="Generate response"
+                        >
+                          <RotateCw size={14} />
+                        </button>
+                      )}
                       {msg.alternatives && msg.alternatives.length > 1 && (
                         <>
                           <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, -1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Previous response" title="Previous response"><ChevronLeft size={14} /></button>
@@ -1817,21 +1819,12 @@ export default function App() {
                           <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, 1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Next response" title="Next response"><ChevronRight size={14} /></button>
                         </>
                       )}
-                      {msg.role === 'assistant' ? (
+                      {msg.role === 'assistant' && (
                         <button
                           onClick={(e) => { e.stopPropagation(); handleRegenerate(idx); }}
                           className="p-1.5 text-zinc-600 hover:text-zinc-300 rounded-sm"
                           aria-label="Regenerate"
                           title="Regenerate"
-                        >
-                          <RotateCw size={14} />
-                        </button>
-                      ) : idx === messages.length - 1 && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); void handleGenerateForUser(idx); }}
-                          className="p-1.5 text-zinc-600 hover:text-zinc-300 rounded-sm"
-                          aria-label="Generate response"
-                          title="Generate response"
                         >
                           <RotateCw size={14} />
                         </button>
