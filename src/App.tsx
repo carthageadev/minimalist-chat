@@ -1586,7 +1586,7 @@ export default function App() {
                         if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
                         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(); }
                       } : undefined}
-                      style={isEditing ? { backgroundImage: 'repeating-linear-gradient(-12deg, rgba(161, 161, 170, 0.035) 0px, rgba(161, 161, 170, 0.035) 1px, transparent 1px, transparent 8px)' } : undefined}
+                      style={isEditing ? { backgroundImage: 'repeating-linear-gradient(-12deg, rgba(39, 39, 42, 0.12) 0px, rgba(39, 39, 42, 0.12) 2px, transparent 2px, transparent 9px)' } : undefined}
                       className={`transition-colors duration-150 focus:outline-none ${isEditing ? 'bg-zinc-800/25 rounded-sm' : ''}`}
                     >
                     {msg.role === 'assistant' ? (
