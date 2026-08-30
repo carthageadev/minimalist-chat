@@ -816,7 +816,13 @@ export default function App() {
   };
 
   const scrollToBottom = (behavior: ScrollBehavior = 'smooth') => {
-    messagesEndRef.current?.scrollIntoView({ behavior });
+    const el = scrollContainerRef.current;
+    if (el) {
+      if (behavior === 'smooth') el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+      else el.scrollTop = el.scrollHeight;
+    } else {
+      messagesEndRef.current?.scrollIntoView({ behavior });
+    }
   };
 
   // ChatGPT-style: follow the stream, but release the moment the user scrolls
@@ -827,7 +833,13 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (autoScrollRef.current) scrollToBottom('auto');
+    if (!autoScrollRef.current) return;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const id = requestAnimationFrame(() => {
+      if (autoScrollRef.current && el) el.scrollTop = el.scrollHeight;
+    });
+    return () => cancelAnimationFrame(id);
   }, [messages, isLoading, isStreaming]);
 
   useEffect(() => {
@@ -1428,7 +1440,7 @@ export default function App() {
           <div
             ref={scrollContainerRef}
             onScroll={handleScroll}
-            className="absolute inset-x-0 inset-y-0 overflow-y-auto hide-scrollbar scroll-smooth pt-[calc(7rem+env(safe-area-inset-top))] pb-48 px-6 space-y-12"
+            className="absolute inset-x-0 inset-y-0 overflow-y-auto hide-scrollbar pt-[calc(7rem+env(safe-area-inset-top))] pb-48 px-6 space-y-12"
           >
             <AnimatePresence initial={false}>
               {messages.map((msg, idx) => {
@@ -1449,7 +1461,7 @@ export default function App() {
                 return (
                 <motion.div
                   key={idx}
-                  layout
+                  layout={!(isStreaming && idx === messages.length - 1)}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -6, transition: { duration: 0.15 } }}
