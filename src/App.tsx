@@ -1520,24 +1520,20 @@ export default function App() {
                         </span>
                         )}
                         {!isEditing && (pendingDeleteIdx === idx ? (
-                          <motion.span
+                          <span
                             data-pending-delete={idx}
-                            initial={{ opacity: 0, x: 4 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 4 }}
-                            transition={{ duration: 0.15, ease: [0.25, 0.1, 0.25, 1] }}
-                            className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-zinc-900/20 backdrop-blur-sm px-1 py-0.5 rounded-none"
+                            className="relative inline-flex items-center"
                           >
-                            <span className="text-[10px] font-mono lowercase text-zinc-400">are you sure?</span>
+                            <span className="absolute right-full mr-1 whitespace-nowrap text-[10px] font-mono lowercase text-zinc-400">are you sure?</span>
                             <button
                               onClick={(e) => { e.stopPropagation(); deleteMessage(idx); setPendingDeleteIdx(null); }}
-                              className="p-1 text-red-400 bg-red-500/15 backdrop-blur-sm border-0 rounded-none transition-colors"
+                              className="p-1.5 text-red-300 bg-red-500/20 rounded-sm"
                               aria-label="Confirm delete"
                               title="Confirm delete"
                             >
-                              <X size={11} />
+                              <X size={14} />
                             </button>
-                          </motion.span>
+                          </span>
                         ) : (
                           <button
                             data-delete-trigger={idx}
@@ -1554,11 +1550,11 @@ export default function App() {
                   </span>
                   <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? 'text-zinc-400' : msg.role === 'system' ? 'text-blue-400/80' : msg.error ? 'text-red-400/80' : 'text-zinc-100'} markdown-body`}>
                     {isEditing ? (
-                      <motion.div
+                        <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.18, ease: [0.25, 0.1, 0.25, 1] }}
-                        className="flex flex-col gap-3"
+                         className="flex flex-col"
                       >
                         <textarea
                           ref={editTextareaRef}
@@ -1568,26 +1564,11 @@ export default function App() {
                             if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
                             if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); void saveEdit(); }
                           }}
-                          className="w-full min-h-[88px] bg-zinc-900/60 border border-zinc-700 focus:border-zinc-600 rounded-sm p-3 text-[14px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-colors"
-                           rows={Math.max(3, editDraft.split('\n').length)}
+                           className="w-full min-h-[88px] bg-zinc-900/60 border border-zinc-700 focus:border-zinc-600 rounded-sm p-3 text-[14px] leading-relaxed text-zinc-100 placeholder:text-zinc-600 resize-none focus:outline-none focus:ring-1 focus:ring-zinc-700 transition-colors overflow-y-auto"
+                           style={{ height: `${Math.max(88, Math.min(480, msg.content.split('\n').length * 24 + 24))}px` }}
+                           rows={3}
                           placeholder="Edit message..."
                         />
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={cancelEdit}
-                            className="px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60 border border-zinc-800 hover:border-zinc-700 rounded-sm transition-colors"
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => void saveEdit()}
-                            disabled={!editDraft.trim()}
-                            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 disabled:cursor-not-allowed rounded-sm transition-colors"
-                          >
-                            <Check size={12} />
-                            {msg.role === 'user' ? 'Save & regenerate' : 'Save'}
-                          </button>
-                        </div>
                       </motion.div>
                     ) : msg.role === 'assistant' ? (
                       <>
@@ -1781,13 +1762,15 @@ export default function App() {
                         <Pencil size={14} />
                       </button>
                       {pendingDeleteIdx === idx ? (
-                        <button
-                          data-pending-delete={idx}
-                          onClick={(e) => { e.stopPropagation(); deleteMessage(idx); setPendingDeleteIdx(null); }}
-                          className="p-1.5 text-red-400 bg-red-500/15 rounded-sm"
-                          aria-label="Confirm delete"
-                          title="Confirm delete"
-                        ><Check size={14} /></button>
+                        <span data-pending-delete={idx} className="relative inline-flex items-center">
+                          <span className="absolute right-full mr-1 whitespace-nowrap text-[10px] font-mono lowercase text-zinc-400">are you sure?</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteMessage(idx); setPendingDeleteIdx(null); }}
+                            className="p-1.5 text-red-300 bg-red-500/20 rounded-sm"
+                            aria-label="Confirm delete"
+                            title="Confirm delete"
+                          ><X size={14} /></button>
+                        </span>
                       ) : (
                         <button
                           data-delete-trigger={idx}
