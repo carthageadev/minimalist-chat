@@ -700,11 +700,12 @@ export default function App() {
     });
   };
 
-  const startEdit = (idx: number) => {
+  const startEdit = (idx: number, position: 'top' | 'bottom' = 'top') => {
     if (isLoading || isStreaming) return;
     const scrollTop = scrollContainerRef.current?.scrollTop;
     setPendingDeleteIdx(null);
     setEditingIndex(idx);
+    setEditActionPosition(position);
     setEditDraft(messages[idx]?.content ?? '');
     setTimeout(() => {
       const editor = editTextareaRef.current;
@@ -721,6 +722,7 @@ export default function App() {
   const cancelEdit = () => {
     setEditingIndex(null);
     setEditDraft('');
+    setEditActionPosition(null);
   };
   const saveEdit = async () => {
     if (editingIndex === null) return;
@@ -748,6 +750,7 @@ export default function App() {
     setMessages(nextMessages);
     setEditingIndex(null);
     setEditDraft('');
+    setEditActionPosition(null);
   };
   const deleteMessage = (idx: number) => {
     if (isLoading || isStreaming) return;
@@ -756,6 +759,7 @@ export default function App() {
     const next = messages.slice(0, idx);
     setMessages(next);
     setEditingIndex(null);
+    setEditActionPosition(null);
   };
   const handleRegenerate = async (idx: number) => {
     if (isLoading || isStreaming) return;
@@ -773,6 +777,7 @@ export default function App() {
     const alternatives = target.alternatives ?? [{ content: target.content, reasoning: target.reasoning }];
     setMessages(truncated);
     setEditingIndex(null);
+    setEditActionPosition(null);
     const toSend = trimHistory(truncated);
     setTimeout(() => { void processChat(toSend, { alternatives }); }, 180);
   };
@@ -807,6 +812,7 @@ export default function App() {
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [editDraft, setEditDraft] = useState('');
   const editTextareaRef = useRef<HTMLDivElement | null>(null);
+  const [editActionPosition, setEditActionPosition] = useState<'top' | 'bottom' | null>(null);
   const [pendingDeleteIdx, setPendingDeleteIdx] = useState<number | null>(null);
   const [activeMessageIndex, setActiveMessageIndex] = useState<number | null>(null);
   useEffect(() => {
@@ -1540,14 +1546,14 @@ export default function App() {
                   transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
                   className="group w-full flex flex-col gap-2"
                 >
-                  <span className={`${isEditing ? 'sticky top-0 z-30 bg-[#09090b]/95 py-2 -my-2' : ''} relative font-mono text-[10px] text-zinc-500 uppercase tracking-wider flex items-center justify-between gap-2`}>
+                  <span className="relative font-mono text-[10px] text-zinc-500 uppercase tracking-wider flex items-center justify-between gap-2">
                     <span
                       onClick={() => canEdit && setActiveMessageIndex(idx)}
                       className={canEdit ? 'cursor-pointer' : ''}
                     >{msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}</span>
                     {canEdit && !isLoading && !isStreaming && (
-                      <span className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-0.5 min-w-[72px] justify-end">
-                        {isEditing ? (
+                      <span className={`${isEditing && editActionPosition === 'top' ? 'sticky top-0 z-30' : 'absolute right-0 top-1/2 -translate-y-1/2'} flex items-center gap-0.5 min-w-[72px] justify-end`}>
+                        {isEditing && editActionPosition === 'top' ? (
                           <>
                             <button
                               onClick={(e) => { e.stopPropagation(); cancelEdit(); }}
@@ -1565,7 +1571,7 @@ export default function App() {
                               <Check size={10} /> Save
                             </button>
                           </>
-                        ) : (
+                        ) : !isEditing ? (
                         <span className={`flex items-center gap-0.5 ${pendingDeleteIdx === idx ? 'opacity-0 pointer-events-none' : ''} opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${activeMessageIndex === idx ? 'opacity-60' : ''} transition-opacity duration-150`}>
                           {msg.alternatives && msg.alternatives.length > 1 && (
                             <>
@@ -1585,7 +1591,7 @@ export default function App() {
                             </button>
                           )}
                           <button
-                            onClick={(e) => { e.stopPropagation(); startEdit(idx); }}
+                            onClick={(e) => { e.stopPropagation(); startEdit(idx, 'top'); }}
                             className="p-1.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
                             aria-label="Edit message"
                             title="Edit"
@@ -1593,7 +1599,7 @@ export default function App() {
                             <Pencil size={14} />
                           </button>
                         </span>
-                        )}
+                        ) : null}
                         {!isEditing && (pendingDeleteIdx === idx ? (
                           <span
                             data-pending-delete={idx}
@@ -1803,13 +1809,13 @@ export default function App() {
                     </div>
                   </div>
                   {canEdit && idx === messages.length - 1 && !isLoading && !isStreaming && (
-                    <div className="flex items-center justify-end gap-1 min-h-[31px] pt-1 border-t border-zinc-900/70">
-                      {isEditing ? (
+                    <div className={`${isEditing && editActionPosition === 'bottom' ? 'sticky bottom-0 z-30' : ''} flex items-center justify-end gap-1 min-h-[31px] pt-1 border-t border-zinc-900/70`}>
+                      {isEditing && editActionPosition === 'bottom' ? (
                         <>
                           <button onClick={(e) => { e.stopPropagation(); cancelEdit(); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded-sm">Cancel</button>
                           <button onClick={(e) => { e.stopPropagation(); void saveEdit(); }} disabled={!editDraft.trim()} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 rounded-sm">Save</button>
                         </>
-                      ) : (
+                      ) : !isEditing ? (
                       <>
                       {msg.role === 'user' && (
                         <button
@@ -1839,7 +1845,7 @@ export default function App() {
                         </button>
                       )}
                       <button
-                        onClick={(e) => { e.stopPropagation(); startEdit(idx); }}
+                        onClick={(e) => { e.stopPropagation(); startEdit(idx, 'bottom'); }}
                         className="p-1.5 text-zinc-600 hover:text-zinc-300 rounded-sm"
                         aria-label="Edit message"
                         title="Edit"
@@ -1867,7 +1873,7 @@ export default function App() {
                           <X size={16} />
                         </button>
                       )}
-                      </>)}
+                      </>) : null}
                     </div>
                   )}
                 </motion.div>
