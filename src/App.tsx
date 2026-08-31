@@ -1540,7 +1540,7 @@ export default function App() {
                   transition={{ duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
                   className="group w-full flex flex-col gap-2"
                 >
-                  <span className="relative font-mono text-[10px] text-zinc-500 uppercase tracking-wider flex items-center justify-between gap-2">
+                  <span className={`${isEditing ? 'sticky top-0 z-30 bg-[#09090b]/95 py-2 -my-2' : ''} relative font-mono text-[10px] text-zinc-500 uppercase tracking-wider flex items-center justify-between gap-2`}>
                     <span
                       onClick={() => canEdit && setActiveMessageIndex(idx)}
                       className={canEdit ? 'cursor-pointer' : ''}
@@ -1804,7 +1804,13 @@ export default function App() {
                   </div>
                   {canEdit && idx === messages.length - 1 && !isLoading && !isStreaming && (
                     <div className="flex items-center justify-end gap-1 min-h-[31px] pt-1 border-t border-zinc-900/70">
-                      {!isEditing && <>
+                      {isEditing ? (
+                        <>
+                          <button onClick={(e) => { e.stopPropagation(); cancelEdit(); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded-sm">Cancel</button>
+                          <button onClick={(e) => { e.stopPropagation(); void saveEdit(); }} disabled={!editDraft.trim()} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 rounded-sm">Save</button>
+                        </>
+                      ) : (
+                      <>
                       {msg.role === 'user' && (
                         <button
                           onClick={(e) => { e.stopPropagation(); void handleGenerateForUser(idx); }}
@@ -1861,7 +1867,7 @@ export default function App() {
                           <X size={16} />
                         </button>
                       )}
-                      </>}
+                      </>)}
                     </div>
                   )}
                 </motion.div>
@@ -1885,25 +1891,6 @@ export default function App() {
               )}
             </AnimatePresence>
             <div ref={messagesEndRef} className="h-8 shrink-0 pb-8" />
-          </div>
-        )}
-
-        {editingIndex !== null && (
-          <div className="fixed z-40 bottom-24 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-3xl flex items-center justify-end gap-2 px-3 py-2 bg-[#0c0c0e]/95 backdrop-blur-md border border-zinc-800 rounded-sm shadow-2xl">
-            <span className="mr-auto font-mono text-[10px] text-zinc-600">Editing message</span>
-            <button
-              onClick={cancelEdit}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded-sm"
-            >
-              <X size={12} /> Cancel
-            </button>
-            <button
-              onClick={() => void saveEdit()}
-              disabled={!editDraft.trim()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 rounded-sm"
-            >
-              <Check size={12} /> Save
-            </button>
           </div>
         )}
 
