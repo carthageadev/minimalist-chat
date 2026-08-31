@@ -1552,7 +1552,7 @@ export default function App() {
                       className={canEdit ? 'cursor-pointer' : ''}
                     >{msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}</span>
                     {canEdit && !isLoading && !isStreaming && (
-                      <span className={`${isEditing && editActionPosition === 'top' ? 'sticky top-0 z-30' : 'absolute right-0 top-1/2 -translate-y-1/2'} flex items-center gap-0.5 min-w-[72px] justify-end`}>
+                      <span className={`${isEditing && editActionPosition === 'top' ? 'sticky top-0 z-30 bg-[#09090b]/35 backdrop-blur-md rounded-sm' : 'absolute right-0 top-1/2 -translate-y-1/2'} flex items-center gap-0.5 min-w-[72px] justify-end`}>
                         {isEditing && editActionPosition === 'top' ? (
                           <>
                             <button
@@ -1809,7 +1809,7 @@ export default function App() {
                     </div>
                   </div>
                   {canEdit && idx === messages.length - 1 && !isLoading && !isStreaming && (
-                    <div className={`${isEditing && editActionPosition === 'bottom' ? 'sticky bottom-0 z-30' : ''} flex items-center justify-end gap-1 min-h-[31px] pt-1 border-t border-zinc-900/70`}>
+                    <div className={`${isEditing && editActionPosition === 'bottom' ? 'sticky bottom-0 z-30 bg-[#09090b]/35 backdrop-blur-md rounded-sm' : ''} flex items-center justify-end gap-1 min-h-[31px] pt-1 border-t border-zinc-900/70`}>
                       {isEditing && editActionPosition === 'bottom' ? (
                         <>
                           <button onClick={(e) => { e.stopPropagation(); cancelEdit(); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded-sm">Cancel</button>
