@@ -1552,26 +1552,8 @@ export default function App() {
                       className={canEdit ? 'cursor-pointer' : ''}
                     >{msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}</span>
                     {canEdit && !isLoading && !isStreaming && (
-                      <span className={`${isEditing && editActionPosition === 'top' ? 'sticky top-0 z-30 bg-[#09090b]/35 backdrop-blur-md rounded-sm' : 'absolute right-0 top-1/2 -translate-y-1/2'} flex items-center gap-0.5 min-w-[72px] justify-end`}>
-                        {isEditing && editActionPosition === 'top' ? (
-                          <>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); cancelEdit(); }}
-                              className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono text-zinc-500 hover:text-zinc-200 border border-zinc-800 rounded-sm"
-                              aria-label="Stop editing"
-                            >
-                              <X size={10} /> Cancel
-                            </button>
-                            <button
-                              onClick={(e) => { e.stopPropagation(); void saveEdit(); }}
-                              disabled={!editDraft.trim()}
-                               className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 border border-zinc-100 rounded-sm"
-                              aria-label="Save edit"
-                            >
-                              <Check size={10} /> Save
-                            </button>
-                          </>
-                        ) : !isEditing ? (
+                      <span className={`${isEditing ? 'hidden' : 'absolute right-0 top-1/2 -translate-y-1/2'} flex items-center gap-0.5 min-w-[72px] justify-end`}>
+                        {!isEditing ? (
                         <span className={`flex items-center gap-0.5 ${pendingDeleteIdx === idx ? 'opacity-0 pointer-events-none' : ''} opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${activeMessageIndex === idx ? 'opacity-60' : ''} transition-opacity duration-150`}>
                           {msg.alternatives && msg.alternatives.length > 1 && (
                             <>
@@ -1629,6 +1611,12 @@ export default function App() {
                       </span>
                     )}
                   </span>
+                  {isEditing && editActionPosition === 'top' && (
+                    <div className="sticky top-28 z-30 self-end flex items-center gap-1 bg-[#09090b]/35 backdrop-blur-md rounded-sm">
+                      <button onClick={(e) => { e.stopPropagation(); cancelEdit(); }} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono text-zinc-500 hover:text-zinc-200 border border-zinc-800 rounded-sm">Cancel</button>
+                      <button onClick={(e) => { e.stopPropagation(); void saveEdit(); }} disabled={!editDraft.trim()} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 border border-zinc-100 rounded-sm">Save</button>
+                    </div>
+                  )}
                   <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? (rpMode ? 'text-zinc-100' : 'text-zinc-400') : msg.role === 'system' ? 'text-blue-400/80' : msg.error ? 'text-red-400/80' : 'text-zinc-100'} markdown-body`}>
                     {msg.role === 'assistant' && msg.reasoning && (() => {
                       const reasoningPending = isStreaming && idx === messages.length - 1;
