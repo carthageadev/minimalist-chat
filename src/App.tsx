@@ -891,6 +891,17 @@ export default function App() {
     if (el) {
       const nearBottom = isNearBottom(el);
       autoScrollRef.current = nearBottom;
+      if (editingIndex !== null) {
+        const card = el.querySelector<HTMLElement>(`[data-message-card="${editingIndex}"]`);
+        if (card) {
+          const containerRect = el.getBoundingClientRect();
+          const cardRect = card.getBoundingClientRect();
+          const topLimit = containerRect.top + 8;
+          const bottomLimit = containerRect.bottom - 8;
+          if (editActionPosition === 'top' && cardRect.bottom <= bottomLimit && cardRect.bottom > topLimit) setEditActionPosition('bottom');
+          else if (editActionPosition === 'bottom' && cardRect.top >= topLimit && cardRect.top < bottomLimit) setEditActionPosition('top');
+        }
+      }
     }
   };
 
@@ -1540,6 +1551,7 @@ export default function App() {
                 return (
                 <motion.div
                   key={msg.id ?? idx}
+                  data-message-card={idx}
                   initial={{ opacity: 0, filter: 'blur(5px)', x: 12 }}
                   animate={{ opacity: 1, filter: 'blur(0px)', x: 0 }}
                   exit={{ opacity: 0, filter: 'blur(7px)', x: -14, transition: { duration: 0.2, ease: 'easeOut' } }}
@@ -1612,9 +1624,11 @@ export default function App() {
                     )}
                   </span>
                   {isEditing && editActionPosition === 'top' && (
-                    <div className="sticky top-28 z-30 self-end flex items-center gap-1 bg-[#09090b]/35 backdrop-blur-md rounded-sm">
-                      <button onClick={(e) => { e.stopPropagation(); cancelEdit(); }} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono text-zinc-500 hover:text-zinc-200 border border-zinc-800 rounded-sm">Cancel</button>
-                      <button onClick={(e) => { e.stopPropagation(); void saveEdit(); }} disabled={!editDraft.trim()} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 border border-zinc-100 rounded-sm">Save</button>
+                    <div className="sticky top-0 z-30 self-end flex items-center gap-1">
+                      <span className="inline-flex items-center gap-1 bg-[#09090b]/35 backdrop-blur-md rounded-sm">
+                        <button onClick={(e) => { e.stopPropagation(); cancelEdit(); }} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono text-zinc-500 hover:text-zinc-200 border border-zinc-800 rounded-sm">Cancel</button>
+                        <button onClick={(e) => { e.stopPropagation(); void saveEdit(); }} disabled={!editDraft.trim()} className="inline-flex items-center gap-1 px-2 py-1 text-[10px] font-mono bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 border border-zinc-100 rounded-sm">Save</button>
+                      </span>
                     </div>
                   )}
                   <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? (rpMode ? 'text-zinc-100' : 'text-zinc-400') : msg.role === 'system' ? 'text-blue-400/80' : msg.error ? 'text-red-400/80' : 'text-zinc-100'} markdown-body`}>
@@ -1797,12 +1811,12 @@ export default function App() {
                     </div>
                   </div>
                   {canEdit && idx === messages.length - 1 && !isLoading && !isStreaming && (
-                    <div className={`${isEditing && editActionPosition === 'bottom' ? 'sticky bottom-0 z-30 bg-[#09090b]/35 backdrop-blur-md rounded-sm' : ''} flex items-center justify-end gap-1 min-h-[31px] pt-1 border-t border-zinc-900/70`}>
+                    <div className={`${isEditing && editActionPosition === 'bottom' ? 'sticky bottom-0 z-30' : ''} flex items-center justify-end gap-1 min-h-[31px] pt-1 border-t border-zinc-900/70`}>
                       {isEditing && editActionPosition === 'bottom' ? (
-                        <>
+                        <span className="inline-flex items-center gap-1 bg-[#09090b]/35 backdrop-blur-md rounded-sm">
                           <button onClick={(e) => { e.stopPropagation(); cancelEdit(); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-200 border border-zinc-800 rounded-sm">Cancel</button>
                           <button onClick={(e) => { e.stopPropagation(); void saveEdit(); }} disabled={!editDraft.trim()} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-zinc-100 text-zinc-900 hover:bg-white disabled:opacity-40 rounded-sm">Save</button>
-                        </>
+                        </span>
                       ) : !isEditing ? (
                       <>
                       {msg.role === 'user' && (
