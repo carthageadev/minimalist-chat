@@ -1013,11 +1013,14 @@ export default function App() {
           searchResultMessage,
         ]);
 
-        setMessages((prev) => [
-          ...prev, 
-          { id: genId(), role: 'system', content: `[SEARCH] Retrieved results for: "${query}"` },
-          searchResultMessage
-        ]);
+        setMessages((prev) => {
+          const copy = [...prev];
+          const i = copy.length - 1;
+          if (copy[i]?.role === 'system' && copy[i].content.startsWith('[SEARCH] Executing search for:')) {
+            copy[i] = { ...copy[i], content: `[SEARCH] Retrieved results for: "${query}" [✓]` };
+          }
+          return [...copy, searchResultMessage];
+        });
 
         await processChat(newMessagesToSend);
         return;
