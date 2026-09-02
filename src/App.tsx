@@ -511,8 +511,8 @@ export default function App() {
     setMessages([...chat.messages]);
     setModel(MODELS.find(m => m.id === chat.model) ? chat.model : MODELS[0].id);
     setRpMode(!!chat.rpMode);
-    if (chat.userPersona) setUserPersona(chat.userPersona);
-    if (chat.charPersona) setCharPersona(chat.charPersona);
+    setUserPersona(chat.userPersona ?? '');
+    setCharPersona(chat.charPersona ?? '');
     setShowHistory(false);
     setEditingIndex(null);
     autoScrollRef.current = true;

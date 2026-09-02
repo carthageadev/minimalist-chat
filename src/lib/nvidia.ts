@@ -56,9 +56,10 @@ export function buildRequestBody(opts: {
   const { messages, model, rp, userPersona, charPersona, customSystemPrompt, isPersona, reasoningOff } = opts;
 
   let systemContent = rp ? rpSystemPrompt : getBaseSystemPrompt();
-  if (rp && typeof customSystemPrompt === 'string' && customSystemPrompt.trim()) {
-    systemContent = customSystemPrompt;
-  } else if (rp) {
+  if (rp) {
+    if (typeof customSystemPrompt === 'string' && customSystemPrompt.trim()) {
+      systemContent = customSystemPrompt.trim();
+    }
     let personaBlock = '';
     if (typeof userPersona === 'string' && userPersona.trim()) {
       personaBlock += `\n\n{{user}} (the user's character):\n${userPersona.trim()}`;
