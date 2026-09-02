@@ -1567,23 +1567,6 @@ export default function App() {
                       <span className={`${isEditing ? 'hidden' : 'absolute right-0 top-1/2 -translate-y-1/2'} flex items-center gap-0.5 min-w-[72px] justify-end`}>
                         {!isEditing ? (
                         <span className={`flex items-center gap-0.5 ${pendingDeleteIdx === idx ? 'opacity-0 pointer-events-none' : ''} opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${activeMessageIndex === idx ? 'opacity-60' : ''} transition-opacity duration-150`}>
-                          {msg.alternatives && msg.alternatives.length > 1 && (
-                            <>
-                              <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, -1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Previous response" title="Previous response"><ChevronLeft size={13} /></button>
-                              <span className="px-0.5 text-[9px] font-mono text-zinc-600">{(msg.activeAlternative ?? 0) + 1}/{msg.alternatives.length}</span>
-                              <button onClick={(e) => { e.stopPropagation(); cycleAlternative(idx, 1); }} className="p-1 text-zinc-600 hover:text-zinc-300 rounded-sm" aria-label="Next response" title="Next response"><ChevronRight size={13} /></button>
-                            </>
-                          )}
-                          {msg.role === 'assistant' && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleRegenerate(idx); }}
-                              className="p-1.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
-                              aria-label="Regenerate"
-                              title="Regenerate"
-                            >
-                              <RotateCw size={14} />
-                            </button>
-                          )}
                           <button
                             onClick={(e) => { e.stopPropagation(); startEdit(idx, 'top'); }}
                             className="p-1.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
@@ -1844,35 +1827,6 @@ export default function App() {
                           title="Regenerate"
                         >
                           <RotateCw size={14} />
-                        </button>
-                      )}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); startEdit(idx, 'bottom'); }}
-                        className="p-1.5 text-zinc-600 hover:text-zinc-300 rounded-sm"
-                        aria-label="Edit message"
-                        title="Edit"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      {pendingDeleteIdx === idx ? (
-                        <span data-pending-delete={idx} className="relative inline-flex items-center">
-                          <span className="absolute right-full mr-1 whitespace-nowrap bg-transparent backdrop-blur-md px-1 py-0.5 rounded-sm text-[10px] font-mono lowercase text-zinc-400">are you sure?</span>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); deleteMessage(idx); setPendingDeleteIdx(null); }}
-                            className="p-1.5 text-red-300 bg-red-500/20 rounded-sm"
-                            aria-label="Confirm delete"
-                            title="Confirm delete"
-                          ><X size={16} /></button>
-                        </span>
-                      ) : (
-                        <button
-                          data-delete-trigger={idx}
-                          onClick={(e) => { e.stopPropagation(); setPendingDeleteIdx(idx); }}
-                          className="p-1.5 text-zinc-600 hover:text-red-400 rounded-sm"
-                          aria-label="Delete message"
-                          title="Delete"
-                        >
-                          <X size={16} />
                         </button>
                       )}
                       </>) : null}
