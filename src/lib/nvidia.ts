@@ -15,7 +15,7 @@ export const BASE_URL = 'https://integrate.api.nvidia.com/v1';
 
 // Normal chat: today's date + the user's timezone are injected fresh on every
 // request (not baked in at build time, which would freeze them). We intentionally
-// do NOT send the exact clock time — that's needlessly invasive. RP omits the date.
+// do NOT send the exact clock time — that's needlessly invasive. Enhanced mode omits the date.
 const getBaseSystemPrompt = () => {
   const today = new Date().toISOString().split('T')[0];
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -46,32 +46,32 @@ Character control rules (strict):
 export function buildRequestBody(opts: {
   messages: ChatMessage[];
   model: string;
-  rp: boolean;
-  userPersona?: string;
-  charPersona?: string;
+  enhanced: boolean;
+  userProfile?: string;
+  charProfile?: string;
   customSystemPrompt?: string;
-  isPersona?: boolean;
+  isProfile?: boolean;
   reasoningOff?: boolean;
 }): Record<string, unknown> {
-  const { messages, model, rp, userPersona, charPersona, customSystemPrompt, isPersona, reasoningOff } = opts;
+  const { messages, model, enhanced, userProfile, charProfile, customSystemPrompt, isProfile, reasoningOff } = opts;
 
-  let systemContent = rp ? rpSystemPrompt : getBaseSystemPrompt();
-  if (rp) {
+  let systemContent = enhanced ? rpSystemPrompt : getBaseSystemPrompt();
+  if (enhanced) {
     if (typeof customSystemPrompt === 'string' && customSystemPrompt.trim()) {
       systemContent = customSystemPrompt.trim();
     }
-    let personaBlock = '';
-    if (typeof userPersona === 'string' && userPersona.trim()) {
-      personaBlock += `\n\n{{user}} (the user's character):\n${userPersona.trim()}`;
+    let profileBlock = '';
+    if (typeof userProfile === 'string' && userProfile.trim()) {
+      profileBlock += `\n\n{{user}} (the user's character):\n${userProfile.trim()}`;
     }
-    if (typeof charPersona === 'string' && charPersona.trim()) {
-      personaBlock += `\n\n{{char}} (your character — you speak and act ONLY as {{char}}):\n${charPersona.trim()}`;
+    if (typeof charProfile === 'string' && charProfile.trim()) {
+      profileBlock += `\n\n{{char}} (your character — you speak and act ONLY as {{char}}):\n${charProfile.trim()}`;
     }
-    systemContent += personaBlock;
+    systemContent += profileBlock;
   }
 
   const cleanMessages = messages.map(m => ({ role: m.role, content: m.content }));
-  const formattedMessages = isPersona ? cleanMessages : [{ role: 'system' as const, content: systemContent }, ...cleanMessages];
+  const formattedMessages = isProfile ? cleanMessages : [{ role: 'system' as const, content: systemContent }, ...cleanMessages];
 
   const body: Record<string, unknown> = {
     model,
@@ -91,12 +91,12 @@ export function buildRequestBody(opts: {
     body.chat_template_kwargs = { enable_thinking: !opts.reasoningOff };
   }
 
-  if (rp) {
+  if (enhanced) {
     body.temperature = 1;
   }
 
   // Unified "reasoning off" switch for the models that use reasoning_effort.
-  // (poolside uses enable_thinking above; MiniMax uses thinking_mode above.)
+  // (poolside/nemotron use enable_thinking above.)
   if (opts.reasoningOff && (model.startsWith('Lorbus/') || model.startsWith('moonshotai/'))) {
     body.reasoning_effort = 'none';
   }

@@ -9,7 +9,7 @@ import { buildRequestBody, streamChat } from './lib/nvidia';
 type Role = 'user' | 'assistant' | 'system';
 
 // Semi-encryption for localStorage (obfuscation, not security)
-const CIPHER_KEY = 'hermes-rp-vault';
+const CIPHER_KEY = 'hermes-app-vault';
 const xorCipher = (input: string) =>
   input.split('').map((c, i) => String.fromCharCode(c.charCodeAt(0) ^ CIPHER_KEY.charCodeAt(i % CIPHER_KEY.length))).join('');
 const encrypt = (text: string) => btoa(xorCipher(encodeURIComponent(text)));
@@ -129,12 +129,12 @@ const scrambleMorph = (
     });
   });
 
-const PERSONA_SYSTEM_PROMPTS: Record<'user' | 'char', string> = {
+const PROFILE_SYSTEM_PROMPTS: Record<'user' | 'char', string> = {
   user: `You are an expert character writer crafting roleplay personas in the style of SillyTavern/JanitorAI card descriptions. Write a vivid persona entry for "{{user}}" — the human's character. Cover: full name and age; physical appearance and distinguishing details; core personality traits; a compact backstory hook; likes and dislikes; and small quirks or habits that make them feel alive and unpredictable. Third-person prose with strong, specific imagery — not generic adjectives. Under 200 words. No markdown, no headers, no bullet lists. Output ONLY the description itself.`,
   char: `You are an expert character-card writer crafting roleplay characters in the style of SillyTavern/JanitorAI cards. Write a rich definition for "{{char}}" — the AI's roleplay character. Cover: full name and age; vivid appearance with distinguishing details; core personality traits and contradictions; a compact backstory hook; their speech style, mannerisms and verbal quirks; likes and dislikes; and how they naturally relate to and react to {{user}}. Third-person prose with strong, specific imagery — not generic adjectives. Make the character feel unpredictable and alive. Under 250 words. No markdown, no headers, no bullet lists. Output ONLY the description itself.`,
 };
 
-const DEFAULT_RP_PROMPT = `Today's date is ${new Date().toISOString().split('T')[0]}. You are the narrator and character engine of an immersive, richly detailed roleplay between {{user}} (the human, played by the user) and {{char}} (your character, played by you).
+const DEFAULT_SYSTEM_PROMPT = `Today's date is ${new Date().toISOString().split('T')[0]}. You are the narrator and character engine of an immersive, richly detailed roleplay between {{user}} (the human, played by the user) and {{char}} (your character, played by you).
 
 Throughout this roleplay: "{{user}}" refers to the user's character and "{{char}}" refers to yours. Never confuse the two.
 
@@ -178,9 +178,9 @@ interface ChatSession {
   createdAt: number;
   updatedAt: number;
   model: string;
-  rpMode: boolean;
-  userPersona?: string;
-  charPersona?: string;
+  enhanced: boolean;
+  userProfile?: string;
+  charProfile?: string;
   messages: Message[];
 }
 
@@ -193,8 +193,8 @@ const loadHistory = (): ChatSession[] => {
   try {
     const raw = localStorage.getItem(HISTORY_KEY);
     const all: ChatSession[] = raw ? JSON.parse(raw) : [];
-    // History is RP-only — drop any legacy normal-mode chats
-    const filtered = all.filter(c => c.rpMode).map(c => ({
+    // History is enhanced-only — drop any legacy standard chats
+    const filtered = all.filter(c => c.enhanced).map(c => ({
       ...c,
       messages: c.messages.map(m => {
         const alternatives = m.alternatives;
@@ -208,9 +208,9 @@ const loadHistory = (): ChatSession[] => {
     return filtered;
   } catch { return []; }
 };
-const saveHistory = (chats: ChatSession[]) => localStorage.setItem(HISTORY_KEY, JSON.stringify(chats.filter(c => c.rpMode)));
+const saveHistory = (chats: ChatSession[]) => localStorage.setItem(HISTORY_KEY, JSON.stringify(chats.filter(c => c.enhanced)));
 const formatDate = (ts: number) => new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-const isTextInDialogue = (source: string, node: any, children: any) => {
+const isQuotedText = (source: string, node: any, children: any) => {
   let start = node?.position?.start?.offset ?? -1;
   if (start < 0) start = source.indexOf(String(children));
   if (start < 0) return false;
@@ -218,11 +218,11 @@ const isTextInDialogue = (source: string, node: any, children: any) => {
 };
 
 // Title generation uses Nemotron with thinking disabled.
-const generateChatTitle = async (opts: { messages: Message[]; rpMode: boolean; userPersona: string; charPersona: string; signal?: AbortSignal }): Promise<string> => {
-  const { messages, rpMode, userPersona, charPersona } = opts;
+const generateChatTitle = async (opts: { messages: Message[]; enhanced: boolean; userProfile: string; charProfile: string; signal?: AbortSignal }): Promise<string> => {
+  const { messages, enhanced, userProfile, charProfile } = opts;
   const preview = messages.slice(0, 4).map(m => `${m.role}: ${m.content.slice(0, 400)}`).join('\n---\n');
-  const rpBlock = rpMode ? `\n\nUser persona: ${userPersona.slice(0, 600)}\nChar persona: ${charPersona.slice(0, 600)}` : '';
-  const prompt = `Generate a very short, punchy chat title (3-6 words, no quotes, no period, Title Case) for this conversation. Capture the core scenario/story.\n\nConversation preview:\n${preview}${rpBlock}\n\nTitle:`;
+  const profileBlock = enhanced ? `\n\nUser profile: ${userProfile.slice(0, 600)}\nCharacter profile: ${charProfile.slice(0, 600)}` : '';
+  const prompt = `Generate a very short, punchy chat title (3-6 words, no quotes, no period, Title Case) for this conversation. Capture the core scenario/story.\n\nConversation preview:\n${preview}${profileBlock}\n\nTitle:`;
   let out = '';
   try {
     const body = buildRequestBody({
@@ -231,8 +231,8 @@ const generateChatTitle = async (opts: { messages: Message[]; rpMode: boolean; u
         { role: 'user', content: prompt },
       ],
       model: TITLE_MODEL,
-      rp: false,
-      isPersona: false,
+      enhanced: false,
+      isProfile: false,
       reasoningOff: true,
     });
     // Title model uses low temp, small max_tokens — override
@@ -245,7 +245,7 @@ const generateChatTitle = async (opts: { messages: Message[]; rpMode: boolean; u
     });
   } catch {}
   const cleaned = out.trim().replace(/^["'“”]+|["'“”]+$/g, '').split('\n')[0].slice(0, 60).trim();
-  return cleaned || (rpMode ? 'Untitled Story' : 'New Chat');
+  return cleaned || (enhanced ? 'Untitled Chat' : 'New Chat');
 };
 
 // Keep history bounded so requests stay within the model's context window.
@@ -337,13 +337,13 @@ export default function App() {
   const [greeting] = useState(() => GREETINGS[Math.floor(Math.random() * GREETINGS.length)]);
   const [chats, setChats] = useState<ChatSession[]>(() => loadHistory());
   // Refresh always lands on home — don't auto-restore last chat. History is
-  // only entered explicitly via /history or /chats in RP mode.
+  // only entered explicitly via /history or /chats in enhanced mode.
   const [currentChatId, setCurrentChatId] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null);
   const [titleDraft, setTitleDraft] = useState('');
   const [messages, setMessages] = useState<Message[]>(() => []);
-  // Normal mode is ephemeral — only persist the draft while RP is off briefly
+  // Standard mode is ephemeral — only persist the draft while enhanced mode is off
   // on refresh we start clean; draft restores only if you re-enter before sending
   const [input, setInput] = useState(() => localStorage.getItem(DRAFT_KEY) || '');
   const [cmdIndex, setCmdIndex] = useState(0);
@@ -361,22 +361,22 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('reasoning-states') || '{}'); } catch { return {}; }
   });
   const isReasoningOn = (id: string) => !!reasoningStates[id];
-  const [rpMode, setRpMode] = useState<boolean>(false);
-  const [rpReveal, setRpReveal] = useState<boolean>(false);
+  const [enhanced, setEnhanced] = useState<boolean>(false);
+  const [glowReveal, setGlowReveal] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!rpMode) return;
-    setRpReveal(true);
-    const t = setTimeout(() => setRpReveal(false), 5000);
+    if (!enhanced) return;
+    setGlowReveal(true);
+    const t = setTimeout(() => setGlowReveal(false), 5000);
     return () => clearTimeout(t);
-  }, [rpMode]);
+  }, [enhanced]);
 
   // Switching modes always lands on home — never carry a chat across modes
-  const prevRpRef = useRef(rpMode);
+  const prevModeRef = useRef(enhanced);
   useEffect(() => {
-    if (prevRpRef.current !== rpMode) {
-      prevRpRef.current = rpMode;
-      // Don't auto-restore; go to home. History is only via /chats in RP.
+    if (prevModeRef.current !== enhanced) {
+      prevModeRef.current = enhanced;
+      // Don't auto-restore; go to home. History is only via /chats in enhanced mode.
       hasTitledRef.current = false;
       titleGenRef.current?.abort();
       abortControllerRef.current?.abort();
@@ -385,29 +385,29 @@ export default function App() {
       setEditingIndex(null);
       setShowHistory(false);
     }
-  }, [rpMode]);
+  }, [enhanced]);
 
   const filteredCmds = useMemo(() => {
     const t = input.trimStart();
     if (!t.startsWith('/')) return [];
     const q = t.toLowerCase().split(' ')[0];
     let cmds = COMMANDS;
-    if (!rpMode) cmds = cmds.filter(c => c.name !== '/history' && c.name !== '/chats');
+    if (!enhanced) cmds = cmds.filter(c => c.name !== '/history' && c.name !== '/chats');
     if (q === '/') return cmds;
     return cmds.filter(c => c.name.startsWith(q));
-  }, [input, rpMode]);
+  }, [input, enhanced]);
   const showCmdPalette = filteredCmds.length > 0 && input.trimStart().startsWith('/');
   useEffect(() => { setCmdIndex(0); }, [input]);
 
-  const showRpRing = rpMode && (rpReveal || isLoading || isStreaming);
-  const [showSetup, setShowSetup] = useState(false);
-  const [userPersona, setUserPersona] = useState<string>(() => decrypt(localStorage.getItem('rp-user-persona')));
-  const [charPersona, setCharPersona] = useState<string>(() => decrypt(localStorage.getItem('rp-char-persona')));
+  const showGlowRing = enhanced && (glowReveal || isLoading || isStreaming);
+  const [showSettings, setShowSettings] = useState(false);
+  const [userProfile, setUserProfile] = useState<string>(() => decrypt(localStorage.getItem('app-user-profile')));
+  const [charProfile, setCharProfile] = useState<string>(() => decrypt(localStorage.getItem('app-char-profile')));
   const [systemPrompt, setSystemPrompt] = useState<string>(() => {
-    const stored = decrypt(localStorage.getItem('rp-system-prompt'));
-    return stored || DEFAULT_RP_PROMPT;
+    const stored = decrypt(localStorage.getItem('app-system-prompt'));
+    return stored || DEFAULT_SYSTEM_PROMPT;
   });
-  const [promptIsCustom, setPromptIsCustom] = useState<boolean>(() => !!decrypt(localStorage.getItem('rp-system-prompt')).trim());
+  const [isCustomPrompt, setIsCustomPrompt] = useState<boolean>(() => !!decrypt(localStorage.getItem('app-system-prompt')).trim());
   const [showSystemPrompt, setShowSystemPrompt] = useState(false);
   const [genUser, setGenUser] = useState(false);
   const [genChar, setGenChar] = useState(false);
@@ -423,9 +423,9 @@ export default function App() {
     else localStorage.removeItem(CURRENT_CHAT_KEY);
   }, [currentChatId]);
 
-  // Keep chats in sync with current messages — RP only. Normal mode is ephemeral.
+  // Keep chats in sync with current messages — enhanced only. Standard mode is ephemeral.
   useEffect(() => {
-    if (!rpMode) return;
+    if (!enhanced) return;
     if (messages.length === 0) return;
     // Don't persist system-only search noise
     const hasReal = messages.some(m => m.role === 'user' || m.role === 'assistant');
@@ -437,15 +437,15 @@ export default function App() {
         const idx = prev.findIndex(c => c.id === currentChatId);
         if (idx !== -1) {
           next = [...prev];
-          next[idx] = { ...next[idx], messages: [...messages], updatedAt: now, model, rpMode, userPersona, charPersona };
+          next[idx] = { ...next[idx], messages: [...messages], updatedAt: now, model, enhanced, userProfile, charProfile };
         } else {
           // current id missing (deleted) — create new
-          const chat: ChatSession = { id: genId(), title: 'New Chat', createdAt: now, updatedAt: now, model, rpMode, userPersona, charPersona, messages: [...messages] };
+          const chat: ChatSession = { id: genId(), title: 'New Chat', createdAt: now, updatedAt: now, model, enhanced, userProfile, charProfile, messages: [...messages] };
           setCurrentChatId(chat.id);
           next = [chat, ...prev];
         }
       } else {
-        const chat: ChatSession = { id: genId(), title: 'New Chat', createdAt: now, updatedAt: now, model, rpMode, userPersona, charPersona, messages: [...messages] };
+        const chat: ChatSession = { id: genId(), title: 'New Chat', createdAt: now, updatedAt: now, model, enhanced, userProfile, charProfile, messages: [...messages] };
         setCurrentChatId(chat.id);
         next = [chat, ...prev];
       }
@@ -454,23 +454,23 @@ export default function App() {
     });
   }, [messages]);
 
-  // Also persist chat list when model/personas change for current chat — RP only
+  // Also persist chat list when model/profiles change for current chat — enhanced only
   useEffect(() => {
-    if (!rpMode) return;
+    if (!enhanced) return;
     if (!currentChatId || messages.length === 0) return;
     setChats(prev => {
       const idx = prev.findIndex(c => c.id === currentChatId);
       if (idx === -1) return prev;
       const next = [...prev];
-      next[idx] = { ...next[idx], model, rpMode, userPersona, charPersona, updatedAt: Date.now() };
+      next[idx] = { ...next[idx], model, enhanced, userProfile, charProfile, updatedAt: Date.now() };
       saveHistory(next);
       return next;
     });
-  }, [model, rpMode, userPersona, charPersona]);
+  }, [model, enhanced, userProfile, charProfile]);
 
-  // Auto-title generation after first exchange (user + assistant) using GPT-OSS 20B — RP only
+  // Auto-title generation after first exchange — enhanced only
   useEffect(() => {
-    if (!rpMode) return;
+    if (!enhanced) return;
     if (isLoading || isStreaming) return;
     if (!currentChatId || messages.length < 2) return;
     const chat = chats.find(c => c.id === currentChatId);
@@ -489,7 +489,7 @@ export default function App() {
       setChats(prev => {
         const n = [...prev]; const i = n.findIndex(c => c.id === currentChatId); if (i !== -1) { n[i] = { ...n[i], title: 'Generating…' }; saveHistory(n); } return n;
       });
-      const title = await generateChatTitle({ messages, rpMode, userPersona, charPersona, signal: ctrl.signal });
+      const title = await generateChatTitle({ messages, enhanced, userProfile, charProfile, signal: ctrl.signal });
       if (ctrl.signal.aborted) {
         hasTitledRef.current = false;
         setChats(prev => {
@@ -501,7 +501,7 @@ export default function App() {
         const n = [...prev]; const i = n.findIndex(c => c.id === currentChatId); if (i !== -1) { n[i] = { ...n[i], title }; saveHistory(n); } return n;
       });
     })();
-  }, [messages, chats, currentChatId, rpMode, userPersona, charPersona, isLoading, isStreaming]);
+  }, [messages, chats, currentChatId, enhanced, userProfile, charProfile, isLoading, isStreaming]);
 
   const openChat = (id: string) => {
     const chat = chats.find(c => c.id === id);
@@ -510,9 +510,9 @@ export default function App() {
     setCurrentChatId(id);
     setMessages([...chat.messages]);
     setModel(MODELS.find(m => m.id === chat.model) ? chat.model : MODELS[0].id);
-    setRpMode(!!chat.rpMode);
-    setUserPersona(chat.userPersona ?? '');
-    setCharPersona(chat.charPersona ?? '');
+    setEnhanced(!!chat.enhanced);
+    setUserProfile(chat.userProfile ?? '');
+    setCharProfile(chat.charProfile ?? '');
     setShowHistory(false);
     setEditingIndex(null);
     autoScrollRef.current = true;
@@ -554,7 +554,7 @@ export default function App() {
   const executeCommand = (name: string) => {
     const cmd = name.toLowerCase();
     if (cmd === '/history' || cmd === '/chats') {
-      if (!rpMode) { setInput(''); localStorage.removeItem(DRAFT_KEY); return; }
+      if (!enhanced) { setInput(''); localStorage.removeItem(DRAFT_KEY); return; }
       setShowHistory(true);
       setInput('');
       localStorage.removeItem(DRAFT_KEY);
@@ -570,11 +570,11 @@ export default function App() {
     }
   };
 
-  const generatePersona = async (kind: 'user' | 'char') => {
+  const generateProfile = async (kind: 'user' | 'char') => {
     const isActive = kind === 'user' ? genUser : genChar;
     const abortRef = kind === 'user' ? userAbortRef : charAbortRef;
     const setGen = kind === 'user' ? setGenUser : setGenChar;
-    const setText = kind === 'user' ? setUserPersona : setCharPersona;
+    const setText = kind === 'user' ? setUserProfile : setCharProfile;
     if (isActive) {
       abortRef.current?.abort();
       return;
@@ -582,7 +582,7 @@ export default function App() {
     setGen(true);
     const controller = new AbortController();
     abortRef.current = controller;
-    const fromText = kind === 'user' ? userPersona : charPersona;
+    const fromText = kind === 'user' ? userProfile : charProfile;
     const current = fromText.trim();
 
     // Buffer for the LLM response while scramble plays
@@ -601,7 +601,7 @@ export default function App() {
       try {
         const body = buildRequestBody({
           messages: [
-            { role: 'system', content: PERSONA_SYSTEM_PROMPTS[kind] },
+            { role: 'system', content: PROFILE_SYSTEM_PROMPTS[kind] },
             {
               role: 'user',
               content: current
@@ -610,8 +610,8 @@ export default function App() {
             },
           ],
           model,
-          rp: false,
-          isPersona: true,
+          enhanced: false,
+          isProfile: true,
           ...(modelSupportsReasoningToggle(model) && !isReasoningOn(model) ? { reasoningOff: true } : {}),
         });
         await streamChat({
@@ -667,7 +667,7 @@ export default function App() {
     if (abortRef.current === controller) abortRef.current = null;
     setGen(false);
   };
-  const rpClicksRef = useRef<{ count: number; first: number }>({ count: 0, first: 0 });
+  const modeClicksRef = useRef<{ count: number; first: number }>({ count: 0, first: 0 });
 
   const selectModel = (id: string) => {
     setModel(id);
@@ -678,7 +678,7 @@ export default function App() {
     setModel('poolside/laguna-xs-2.1');
     localStorage.setItem('selected-model', 'poolside/laguna-xs-2.1');
     const now = Date.now();
-    const state = rpClicksRef.current;
+    const state = modeClicksRef.current;
     if (now - state.first > 2500) {
       state.count = 1;
       state.first = now;
@@ -686,7 +686,7 @@ export default function App() {
       state.count += 1;
     }
     if (state.count >= 10) {
-      setRpMode((v) => !v);
+      setEnhanced((v) => !v);
       state.count = 0;
       setShowModelPicker(false);
     }
@@ -954,11 +954,11 @@ export default function App() {
       const body = buildRequestBody({
         messages: currentMessages,
         model,
-        rp: rpMode,
-        userPersona,
-        charPersona,
-        customSystemPrompt: promptIsCustom ? systemPrompt : '',
-        isPersona: false,
+        enhanced: enhanced,
+        userProfile,
+        charProfile,
+        customSystemPrompt: isCustomPrompt ? systemPrompt : '',
+        isProfile: false,
         ...(modelSupportsReasoningToggle(model) && !isReasoningOn(model) ? { reasoningOff: true } : {}),
       });
 
@@ -1163,11 +1163,11 @@ export default function App() {
       <header className="absolute top-0 w-full p-6 pt-[calc(1.5rem+env(safe-area-inset-top))] flex justify-between items-center text-[10px] sm:text-xs font-mono text-zinc-500 uppercase tracking-widest z-10 pointer-events-auto">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => (rpMode ? setShowSetup(true) : setShowContact(true))}
+            onClick={() => (enhanced ? setShowSettings(true) : setShowContact(true))}
             className="flex items-center gap-2 px-2 py-1 rounded-none bg-zinc-900/20 backdrop-blur-sm border-0 hover:bg-zinc-800/30 hover:text-zinc-300 transition-all focus:outline-none"
           >
             <Lock size={12} className="text-zinc-600" />
-            <span>{rpMode ? 'Setup' : 'E2E Channel'}</span>
+            <span>{enhanced ? 'Settings' : 'E2E Channel'}</span>
           </button>
           
           <button
@@ -1376,15 +1376,15 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* RP Setup Modal */}
+      {/* Settings Modal */}
       <AnimatePresence>
-        {showSetup && rpMode && (
+        {showSettings && enhanced && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-6 pointer-events-auto"
-            onClick={() => setShowSetup(false)}
+            onClick={() => setShowSettings(false)}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -1394,12 +1394,12 @@ export default function App() {
               className="relative w-full max-w-md bg-[#0c0c0e] border border-zinc-800 rounded-sm shadow-2xl p-8 normal-case tracking-normal"
             >
               <button
-                onClick={() => setShowSetup(false)}
+                onClick={() => setShowSettings(false)}
                 className="absolute top-4 right-4 text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none"
               >
                 <X size={16} />
               </button>
-              <h2 className="text-base font-medium text-zinc-200 mb-4 font-sans tracking-tight">Roleplay Setup</h2>
+              <h2 className="text-base font-medium text-zinc-200 mb-4 font-sans tracking-tight">Chat Settings</h2>
               <button
                 type="button"
                 onClick={() => setShowSystemPrompt(true)}
@@ -1411,19 +1411,19 @@ export default function App() {
                 <span className="font-mono text-[9px] uppercase tracking-wider text-amber-500/70">⚠ advanced</span>
               </button>
               <label className="block font-mono text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
-                Your persona
+                Your profile
               </label>
               <textarea
-                value={userPersona}
-                onChange={(e) => setUserPersona(e.target.value)}
+                value={userProfile}
+                onChange={(e) => setUserProfile(e.target.value)}
                 readOnly={genUser}
                 placeholder="Who is the user in this story? Name, appearance, personality..."
-                className={`persona-box w-full h-24 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${genUser ? 'persona-glow' : ''}`}
+                className={`profile-box w-full h-24 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${genUser ? 'profile-glow' : ''}`}
               />
               <div className="flex justify-end mt-2 mb-5">
                 <button
                   type="button"
-                  onClick={() => generatePersona('user')}
+                  onClick={() => generateProfile('user')}
                   title={genUser ? 'Cancel' : undefined}
                   className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 transition-colors focus:outline-none ${genUser ? 'opacity-40' : ''}`}
                 >
@@ -1435,16 +1435,16 @@ export default function App() {
                 Character description
               </label>
               <textarea
-                value={charPersona}
-                onChange={(e) => setCharPersona(e.target.value)}
+                value={charProfile}
+                onChange={(e) => setCharProfile(e.target.value)}
                 readOnly={genChar}
                 placeholder="Define your character — name, personality, appearance, how they speak and act..."
-                className={`persona-box w-full h-32 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${genChar ? 'persona-glow' : ''}`}
+                className={`profile-box w-full h-32 bg-zinc-900/60 border border-zinc-800/80 rounded-sm p-3 text-sm text-zinc-200 placeholder:text-zinc-600 resize-none focus:outline-none leading-relaxed ${genChar ? 'profile-glow' : ''}`}
               />
               <div className="flex justify-end mt-2 mb-6">
                 <button
                   type="button"
-                  onClick={() => generatePersona('char')}
+                  onClick={() => generateProfile('char')}
                   title={genChar ? 'Cancel' : undefined}
                   className={`flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-fuchsia-200/90 bg-fuchsia-500/10 border border-fuchsia-400/20 hover:bg-fuchsia-500/20 hover:border-fuchsia-400/40 hover:text-fuchsia-100 rounded-sm px-2.5 py-1 transition-colors focus:outline-none ${genChar ? 'opacity-40' : ''}`}
                 >
@@ -1454,9 +1454,9 @@ export default function App() {
               </div>
               <button
                 onClick={() => {
-                  store('rp-user-persona', userPersona);
-                  store('rp-char-persona', charPersona);
-                  setShowSetup(false);
+                  store('app-user-profile', userProfile);
+                  store('app-char-profile', charProfile);
+                  setShowSettings(false);
                 }}
                 className="w-full py-2.5 bg-zinc-100 hover:bg-white text-zinc-900 transition-colors rounded-sm text-sm font-medium"
               >
@@ -1502,15 +1502,15 @@ export default function App() {
               />
               <div className="flex gap-2">
                 <button
-                  onClick={() => setSystemPrompt(DEFAULT_RP_PROMPT)}
+                  onClick={() => setSystemPrompt(DEFAULT_SYSTEM_PROMPT)}
                   className="px-4 py-2.5 border border-zinc-700 hover:border-zinc-500 text-zinc-300 hover:text-zinc-100 transition-colors rounded-sm text-sm"
                 >
                   Reset to default
                 </button>
                 <button
                   onClick={() => {
-                    store('rp-system-prompt', systemPrompt);
-                    setPromptIsCustom(true);
+                    store('app-system-prompt', systemPrompt);
+                    setIsCustomPrompt(true);
                     setShowSystemPrompt(false);
                   }}
                   className="flex-1 py-2.5 bg-zinc-100 hover:bg-white text-zinc-900 transition-colors rounded-sm text-sm font-medium"
@@ -1614,7 +1614,7 @@ export default function App() {
                       </span>
                     </div>
                   )}
-                  <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? (rpMode ? 'text-zinc-100' : 'text-zinc-400') : msg.role === 'system' ? 'text-blue-400/80' : msg.error ? 'text-red-400/80' : 'text-zinc-100'} markdown-body`}>
+                  <div className={`text-[15px] sm:text-base leading-relaxed ${msg.role === 'user' ? (enhanced ? 'text-zinc-100' : 'text-zinc-400') : msg.role === 'system' ? 'text-blue-400/80' : msg.error ? 'text-red-400/80' : 'text-zinc-100'} markdown-body`}>
                     {msg.role === 'assistant' && msg.reasoning && (() => {
                       const reasoningPending = isStreaming && idx === messages.length - 1;
                       return (
@@ -1661,11 +1661,11 @@ export default function App() {
                           ol: ({ node, ...props }: any) => <ol className="mb-[1.25em] pl-6 list-decimal" {...props} />,
                           li: ({ node, ...props }: any) => <li className="mb-1.5" {...props} />,
                           strong: ({ node, children, ...props }: any) => {
-                            const inQuote = rpMode && isTextInDialogue(msg.content, node, children);
+                            const inQuote = enhanced && isQuotedText(msg.content, node, children);
                             return (
                               <strong
                                 {...props}
-                                style={rpMode ? { color: inQuote ? '#fff' : 'rgb(161 161 170 / 0.92)' } : undefined}
+                                style={enhanced ? { color: inQuote ? '#fff' : 'rgb(161 161 170 / 0.92)' } : undefined}
                                 className={inQuote ? 'font-semibold' : 'font-bold'}
                               >
                                 {children}
@@ -1673,8 +1673,8 @@ export default function App() {
                             );
                           },
                           em: ({ node, children, ...props }: any) => {
-                            const inQuote = rpMode && isTextInDialogue(msg.content, node, children);
-                            return <span {...props} className={rpMode ? (inQuote ? 'text-zinc-100 italic font-normal' : 'text-zinc-500/80 italic font-normal') : 'italic font-normal'}>{children}</span>;
+                            const inQuote = enhanced && isQuotedText(msg.content, node, children);
+                            return <span {...props} className={enhanced ? (inQuote ? 'text-zinc-100 italic font-normal' : 'text-zinc-500/80 italic font-normal') : 'italic font-normal'}>{children}</span>;
                           },
                           table: ({ node, ...props }: any) => (
                             <div className="w-full overflow-x-auto my-6 border border-zinc-800/80 rounded-sm">
@@ -1746,16 +1746,16 @@ export default function App() {
                           ol: ({ node, ...props }: any) => <ol className="mb-[1.25em] pl-6 list-decimal" {...props} />,
                           li: ({ node, ...props }: any) => <li className="mb-1.5" {...props} />,
                           strong: ({ node, children, ...props }: any) => {
-                            const inQuote = rpMode && isTextInDialogue(msg.content, node, children);
+                            const inQuote = enhanced && isQuotedText(msg.content, node, children);
                             return (
-                              <strong {...props} style={rpMode ? { color: inQuote ? '#fff' : 'rgb(161 161 170 / 0.92)' } : undefined} className={inQuote ? 'font-semibold' : 'font-bold'}>
+                              <strong {...props} style={enhanced ? { color: inQuote ? '#fff' : 'rgb(161 161 170 / 0.92)' } : undefined} className={inQuote ? 'font-semibold' : 'font-bold'}>
                                 {children}
                               </strong>
                             );
                           },
                           em: ({ node, children, ...props }: any) => {
-                            const inQuote = rpMode && isTextInDialogue(msg.content, node, children);
-                            return <span {...props} className={rpMode ? (inQuote ? 'text-zinc-100 italic font-normal' : 'text-zinc-500/80 italic font-normal') : 'italic font-normal'}>{children}</span>;
+                            const inQuote = enhanced && isQuotedText(msg.content, node, children);
+                            return <span {...props} className={enhanced ? (inQuote ? 'text-zinc-100 italic font-normal' : 'text-zinc-500/80 italic font-normal') : 'italic font-normal'}>{children}</span>;
                           },
                           a: ({ node, ...props }: any) => <a className="text-zinc-300 underline decoration-zinc-600 underline-offset-4 hover:decoration-zinc-300" {...props} />,
                           blockquote: ({ node, ...props }: any) => <blockquote className="border-l-2 border-zinc-700 pl-4 my-4 italic text-zinc-400/90" {...props} />,
@@ -1906,14 +1906,14 @@ export default function App() {
               )}
             </AnimatePresence>
             <AnimatePresence>
-              {showRpRing && (
+              {showGlowRing && (
                 <motion.span
-                  key="rp-ring"
+                  key="accent-ring"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1, transition: { duration: 0.6, ease: 'easeOut' } }}
                   exit={{ opacity: 0, transition: { duration: 1, ease: 'easeInOut' } }}
                   aria-hidden
-                  className="rp-ring pointer-events-none absolute inset-0 z-10"
+                  className="accent-ring pointer-events-none absolute inset-0 z-10"
                 />
               )}
             </AnimatePresence>
