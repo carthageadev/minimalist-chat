@@ -1565,18 +1565,6 @@ export default function App() {
                     >{msg.role === 'user' ? 'Session_User' : msg.role === 'system' ? 'System_Log' : 'Hermes_System'}</span>
                     {canEdit && !isLoading && !isStreaming && (
                       <span className={`${isEditing ? 'hidden' : 'absolute right-0 top-1/2 -translate-y-1/2'} flex items-center gap-0.5 min-w-[72px] justify-end`}>
-                        {!isEditing ? (
-                        <span className={`flex items-center gap-0.5 ${pendingDeleteIdx === idx ? 'opacity-0 pointer-events-none' : ''} opacity-0 md:group-hover:opacity-100 md:group-focus-within:opacity-100 ${activeMessageIndex === idx ? 'opacity-60' : ''} transition-opacity duration-150`}>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); startEdit(idx, 'top'); }}
-                            className="p-1.5 text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 rounded-sm"
-                            aria-label="Edit message"
-                            title="Edit"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        </span>
-                        ) : null}
                         {!isEditing && (pendingDeleteIdx === idx ? (
                           <span
                             data-pending-delete={idx}
