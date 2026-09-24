@@ -158,7 +158,7 @@ const MODELS = [
   { id: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning', label: 'Nemotron 3 Nano', reasoningToggle: true },
   { id: 'poolside/laguna-xs-2.1', label: 'Laguna 2.1 XS', reasoningToggle: true },
   { id: 'openai/gpt-oss-20b', label: 'GPT-OSS' },
-  { id: 'turboderp/Qwen3.8-27B-exl3', label: 'Qwen 3.8', baseUrl: 'https://hermes.ai.unturf.com/v1', splitThink: true, reasoningToggle: true },
+  { id: 'turboderp/Qwen3.8-27B-exl3', label: 'Qwen 3.8', baseUrl: 'https://hermes.ai.unturf.com/v1', reasoningToggle: true },
   { id: 'moonshotai/kimi-k3', label: 'Kimi K3', reasoningToggle: true },
 ];
 
