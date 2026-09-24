@@ -159,7 +159,11 @@ export async function streamChat(opts: {
     let msg = `HTTP ${res.status}`;
     try {
       const j = await res.json();
-      const detail = j?.error || (typeof j?.detail === 'string' ? j.detail : null);
+      // Upstream errors are sometimes plain strings, sometimes JSON objects
+      // (e.g. { message, param, code }). Never stringify an object directly or
+      // the user only sees "[object Object]" instead of the actual failure.
+      const raw = j?.error ?? j?.detail ?? j?.message;
+      const detail = typeof raw === 'string' ? raw : raw != null ? JSON.stringify(raw) : null;
       if (detail) msg = `${res.status} — ${detail}`;
     } catch {}
     cb.onError?.(msg);
