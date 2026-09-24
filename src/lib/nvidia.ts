@@ -101,6 +101,12 @@ export function buildRequestBody(opts: {
     body.reasoning_effort = 'none';
   }
 
+  // Qwen 3.8 (turboderp) — the toggle maps directly to reasoning_effort:
+  // reasoningOff ? "none" (off) : "low" (on).
+  if (model.startsWith('turboderp/')) {
+    body.reasoning_effort = opts.reasoningOff ? 'none' : 'low';
+  }
+
   return body;
 }
 
