@@ -70,7 +70,17 @@ export function buildRequestBody(opts: {
     systemContent += profileBlock;
   }
 
-  const cleanMessages = messages.map(m => ({ role: m.role, content: m.content }));
+  const cleanMessages = messages.map(m => {
+    let content = m.content;
+    // A search directive is a text-based pseudo tool call. Once it has been
+    // executed and the results are in context, replaying it verbatim makes the
+    // model search again instead of answering. Rewrite it to a completed form
+    // so only the sent copy is neutralized — the UI keeps the original text.
+    if (m.role === 'assistant' && /\[SEARCH:/i.test(content)) {
+      content = content.replace(/\[SEARCH:\s*([\s\S]*?)\]/i, (_m, q) => `[SEARCH COMPLETE: ${q}]`);
+    }
+    return { role: m.role, content };
+  });
   const formattedMessages = isProfile ? cleanMessages : [{ role: 'system' as const, content: systemContent }, ...cleanMessages];
 
   const body: Record<string, unknown> = {
